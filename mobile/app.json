@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "Livro de Receitas",
+    "slug": "recipe-book-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.recipeBook.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.recipeBook.mobile"
+    },
+    "web": {
+      "favicon": "",
+      "bundler": "metro"
+    },
+    "plugins": [],
+    "scheme": "recipebook"
+  }
+}

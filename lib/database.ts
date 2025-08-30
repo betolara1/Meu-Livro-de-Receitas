@@ -1,7 +1,8 @@
-import { pool, initializeDatabase } from './database-config'
-import mysql from 'mysql2/promise'
+import { ObjectId } from 'mongodb'
+import { getCollection, initializeDatabase, defaultCategories } from './database-config'
 
 export interface Recipe {
+  _id?: ObjectId
   id: string
   title: string
   description: string
@@ -10,14 +11,15 @@ export interface Recipe {
   servings: string
   difficulty: string
   category: string
+  temperature?: string
   ingredients: { item: string; quantity: string }[]
   instructions: string[]
   tags: string[]
   imageUrl?: string
   rating: number
   favorites: number
-  createdAt: string
-  updatedAt: string
+  createdAt: Date
+  updatedAt: Date
 }
 
 export interface RecipeFilters {
@@ -28,497 +30,431 @@ export interface RecipeFilters {
   tags?: string[]
 }
 
-class MySQLDatabase {
+class MongoDatabase {
   private initialized = false
 
   private async ensureInitialized() {
     if (!this.initialized) {
       await initializeDatabase()
+      
+      // Inserir categorias padrão se não existirem
+      const categoriesCollection = await getCollection('user_categories')
+      const existingCategories = await categoriesCollection.countDocuments({ userId: 'system' })
+      
+      if (existingCategories === 0) {
+        await categoriesCollection.insertMany(defaultCategories)
+        console.log('[MongoDB] Categorias padrão inseridas')
+      }
+      
       this.initialized = true
     }
   }
 
-  // CREATE - INSERT INTO recipes
+  // CREATE - Criar nova receita
   async createRecipe(
-    recipeData: Omit<Recipe, "id" | "createdAt" | "updatedAt" | "rating" | "favorites">,
+    recipeData: Omit<Recipe, "_id" | "id" | "createdAt" | "updatedAt" | "rating" | "favorites">,
   ): Promise<Recipe> {
     await this.ensureInitialized()
     
-    const connection = await pool.getConnection()
     try {
+      const recipesCollection = await getCollection('recipes')
       const recipeId = Date.now().toString()
-      const now = new Date().toISOString()
+      const now = new Date()
 
-      // Inserir receita principal
-      await connection.execute(
-        `INSERT INTO recipes (id, title, description, prep_time, cook_time, servings, difficulty, category, image_url, rating, favorites_count, created_at, updated_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          recipeId,
-          recipeData.title,
-          recipeData.description,
-          recipeData.prepTime,
-          recipeData.cookTime,
-          recipeData.servings,
-          recipeData.difficulty,
-          recipeData.category,
-          recipeData.imageUrl || null,
-          0,
-          0,
-          now,
-          now
-        ]
-      )
-
-      // Inserir ingredientes
-      for (const ingredient of recipeData.ingredients) {
-        await connection.execute(
-          `INSERT INTO ingredients (recipe_id, item, quantity) VALUES (?, ?, ?)`,
-          [recipeId, ingredient.item, ingredient.quantity]
-        )
+      const newRecipe: Omit<Recipe, '_id'> = {
+        id: recipeId,
+        title: recipeData.title,
+        description: recipeData.description,
+        prepTime: recipeData.prepTime,
+        cookTime: recipeData.cookTime,
+        servings: recipeData.servings,
+        difficulty: recipeData.difficulty,
+        category: recipeData.category,
+        temperature: recipeData.temperature,
+        ingredients: recipeData.ingredients,
+        instructions: recipeData.instructions,
+        tags: recipeData.tags,
+        imageUrl: recipeData.imageUrl,
+        rating: 0,
+        favorites: 0,
+        createdAt: now,
+        updatedAt: now
       }
 
-      // Inserir instruções
-      for (let i = 0; i < recipeData.instructions.length; i++) {
-        await connection.execute(
-          `INSERT INTO instructions (recipe_id, step_number, instruction) VALUES (?, ?, ?)`,
-          [recipeId, i + 1, recipeData.instructions[i]]
-        )
-      }
-
-      // Inserir tags
-      for (const tagName of recipeData.tags) {
-        // Verificar se a tag já existe
-        const [existingTags] = await connection.execute(
-          `SELECT id FROM tags WHERE name = ?`,
-          [tagName]
-        ) as any[]
-
-        let tagId: number
-        if (existingTags.length === 0) {
-          // Criar nova tag
-          const [result] = await connection.execute(
-            `INSERT INTO tags (name) VALUES (?)`,
-            [tagName]
-          ) as any[]
-          tagId = result.insertId
-        } else {
-          tagId = existingTags[0].id
-        }
-
-        // Relacionar tag com receita
-        await connection.execute(
-          `INSERT INTO recipe_tags (recipe_id, tag_id) VALUES (?, ?)`,
-          [recipeId, tagId]
-        )
-      }
-
-      console.log("[MySQL] Receita salva no banco:", recipeData.title)
+      const result = await recipesCollection.insertOne(newRecipe)
+      
+      console.log("[MongoDB] Receita salva no banco:", recipeData.title)
       
       // Retornar receita completa
-      return await this.getRecipeById(recipeId) as Recipe
-    } finally {
-      connection.release()
+      const createdRecipe = await recipesCollection.findOne({ _id: result.insertedId })
+      return createdRecipe as Recipe
+    } catch (error) {
+      console.error('[MongoDB] Erro ao criar receita:', error)
+      throw error
     }
   }
 
-  // READ - SELECT * FROM recipes
+  // READ - Buscar todas as receitas
   async getAllRecipes(): Promise<Recipe[]> {
     await this.ensureInitialized()
     
-    const connection = await pool.getConnection()
     try {
-      const [recipes] = await connection.execute(
-        `SELECT * FROM recipes ORDER BY created_at DESC`
-      ) as any[]
+      const recipesCollection = await getCollection('recipes')
+      const recipes = await recipesCollection
+        .find({})
+        .sort({ createdAt: -1 })
+        .toArray()
 
-      const recipesWithDetails = await Promise.all(
-        recipes.map(async (recipe: any) => {
-          return await this.getRecipeById(recipe.id) as Recipe
-        })
-      )
-
-      return recipesWithDetails
-    } finally {
-      connection.release()
+      return recipes.map(recipe => ({
+        ...recipe,
+        _id: recipe._id
+      })) as Recipe[]
+    } catch (error) {
+      console.error('[MongoDB] Erro ao buscar receitas:', error)
+      throw error
     }
   }
 
-  // READ - SELECT * FROM recipes WHERE id = ?
+  // READ - Buscar receita por ID
   async getRecipeById(id: string): Promise<Recipe | null> {
     await this.ensureInitialized()
     
-    const connection = await pool.getConnection()
     try {
-      const [recipes] = await connection.execute(
-        `SELECT * FROM recipes WHERE id = ?`,
-        [id]
-      ) as any[]
+      const recipesCollection = await getCollection('recipes')
+      const recipe = await recipesCollection.findOne({ id })
 
-      if (recipes.length === 0) return null
-
-      const recipe = recipes[0]
-
-      // Buscar ingredientes
-      const [ingredients] = await connection.execute(
-        `SELECT item, quantity FROM ingredients WHERE recipe_id = ? ORDER BY id`,
-        [id]
-      ) as any[]
-
-      // Buscar instruções
-      const [instructions] = await connection.execute(
-        `SELECT instruction FROM instructions WHERE recipe_id = ? ORDER BY step_number`,
-        [id]
-      ) as any[]
-
-      // Buscar tags
-      const [tags] = await connection.execute(
-        `SELECT t.name FROM tags t 
-         JOIN recipe_tags rt ON t.id = rt.tag_id 
-         WHERE rt.recipe_id = ?`,
-        [id]
-      ) as any[]
+      if (!recipe) return null
 
       return {
-        id: recipe.id,
-        title: recipe.title,
-        description: recipe.description,
-        prepTime: recipe.prep_time,
-        cookTime: recipe.cook_time,
-        servings: recipe.servings,
-        difficulty: recipe.difficulty,
-        category: recipe.category,
-        imageUrl: recipe.image_url,
-        rating: parseFloat(recipe.rating) || 0,
-        favorites: recipe.favorites_count || 0,
-        createdAt: recipe.created_at,
-        updatedAt: recipe.updated_at,
-        ingredients: ingredients.map((ing: any) => ({
-          item: ing.item,
-          quantity: ing.quantity
-        })),
-        instructions: instructions.map((inst: any) => inst.instruction),
-        tags: tags.map((tag: any) => tag.name)
-      }
-    } finally {
-      connection.release()
+        ...recipe,
+        _id: recipe._id
+      } as Recipe
+    } catch (error) {
+      console.error('[MongoDB] Erro ao buscar receita por ID:', error)
+      throw error
     }
   }
 
-  // READ - SELECT * FROM recipes WHERE ... (com filtros)
+  // READ - Buscar receitas com filtros
   async searchRecipes(filters: RecipeFilters): Promise<Recipe[]> {
     await this.ensureInitialized()
     
-    const connection = await pool.getConnection()
     try {
-      let query = `
-        SELECT DISTINCT r.* FROM recipes r
-        LEFT JOIN ingredients i ON r.id = i.recipe_id
-        LEFT JOIN recipe_tags rt ON r.id = rt.recipe_id
-        LEFT JOIN tags t ON rt.tag_id = t.id
-        WHERE 1=1
-      `
-      const params: any[] = []
+      const recipesCollection = await getCollection('recipes')
+      const query: any = {}
 
+      // Filtro de busca por texto
       if (filters.search) {
-        query += ` AND (
-          r.title LIKE ? OR 
-          r.description LIKE ? OR 
-          i.item LIKE ? OR 
-          t.name LIKE ?
-        )`
-        const searchTerm = `%${filters.search}%`
-        params.push(searchTerm, searchTerm, searchTerm, searchTerm)
+        query.$or = [
+          { title: { $regex: filters.search, $options: 'i' } },
+          { description: { $regex: filters.search, $options: 'i' } },
+          { 'ingredients.item': { $regex: filters.search, $options: 'i' } },
+          { tags: { $regex: filters.search, $options: 'i' } }
+        ]
       }
 
+      // Filtro por categoria
       if (filters.category) {
-        query += ` AND r.category = ?`
-        params.push(filters.category)
+        query.category = filters.category
       }
 
+      // Filtro por dificuldade
       if (filters.difficulty) {
-        query += ` AND r.difficulty = ?`
-        params.push(filters.difficulty)
+        query.difficulty = filters.difficulty
       }
 
+      // Filtro por rating mínimo
       if (filters.minRating) {
-        query += ` AND r.rating >= ?`
-        params.push(filters.minRating)
+        query.rating = { $gte: filters.minRating }
       }
 
+      // Filtro por tags
       if (filters.tags && filters.tags.length > 0) {
-        query += ` AND t.name IN (${filters.tags.map(() => '?').join(',')})`
-        params.push(...filters.tags)
+        query.tags = { $in: filters.tags }
       }
 
-      query += ` ORDER BY r.created_at DESC`
+      const recipes = await recipesCollection
+        .find(query)
+        .sort({ createdAt: -1 })
+        .toArray()
 
-      const [recipes] = await connection.execute(query, params) as any[]
-
-      const recipesWithDetails = await Promise.all(
-        recipes.map(async (recipe: any) => {
-          return await this.getRecipeById(recipe.id) as Recipe
-        })
-      )
-
-      return recipesWithDetails
-    } finally {
-      connection.release()
+      return recipes.map(recipe => ({
+        ...recipe,
+        _id: recipe._id
+      })) as Recipe[]
+    } catch (error) {
+      console.error('[MongoDB] Erro ao buscar receitas com filtros:', error)
+      throw error
     }
   }
 
-  // UPDATE - UPDATE recipes SET ... WHERE id = ?
+  // UPDATE - Atualizar receita
   async updateRecipe(id: string, updates: Partial<Recipe>): Promise<Recipe | null> {
     await this.ensureInitialized()
     
-    const connection = await pool.getConnection()
     try {
+      const recipesCollection = await getCollection('recipes')
+      
       // Verificar se a receita existe
       const existingRecipe = await this.getRecipeById(id)
       if (!existingRecipe) return null
 
-      // Atualizar dados principais
-      if (updates.title || updates.description || updates.prepTime || updates.cookTime || 
-          updates.servings || updates.difficulty || updates.category || updates.imageUrl) {
-        
-        const updateFields = []
-        const updateParams = []
-        
-        if (updates.title) {
-          updateFields.push('title = ?')
-          updateParams.push(updates.title)
-        }
-        if (updates.description) {
-          updateFields.push('description = ?')
-          updateParams.push(updates.description)
-        }
-        if (updates.prepTime) {
-          updateFields.push('prep_time = ?')
-          updateParams.push(updates.prepTime)
-        }
-        if (updates.cookTime) {
-          updateFields.push('cook_time = ?')
-          updateParams.push(updates.cookTime)
-        }
-        if (updates.servings) {
-          updateFields.push('servings = ?')
-          updateParams.push(updates.servings)
-        }
-        if (updates.difficulty) {
-          updateFields.push('difficulty = ?')
-          updateParams.push(updates.difficulty)
-        }
-        if (updates.category) {
-          updateFields.push('category = ?')
-          updateParams.push(updates.category)
-        }
-        if (updates.imageUrl !== undefined) {
-          updateFields.push('image_url = ?')
-          updateParams.push(updates.imageUrl)
-        }
+      // Preparar dados para atualização
+      const updateData: any = { ...updates }
+      delete updateData._id
+      delete updateData.id
+      updateData.updatedAt = new Date()
 
-        updateParams.push(id)
-        await connection.execute(
-          `UPDATE recipes SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = ?`,
-          updateParams
-        )
-      }
+      // Atualizar receita
+      await recipesCollection.updateOne(
+        { id },
+        { $set: updateData }
+      )
 
-      // Atualizar ingredientes se fornecidos
-      if (updates.ingredients) {
-        await connection.execute(`DELETE FROM ingredients WHERE recipe_id = ?`, [id])
-        for (const ingredient of updates.ingredients) {
-          await connection.execute(
-            `INSERT INTO ingredients (recipe_id, item, quantity) VALUES (?, ?, ?)`,
-            [id, ingredient.item, ingredient.quantity]
-          )
-        }
-      }
-
-      // Atualizar instruções se fornecidas
-      if (updates.instructions) {
-        await connection.execute(`DELETE FROM instructions WHERE recipe_id = ?`, [id])
-        for (let i = 0; i < updates.instructions.length; i++) {
-          await connection.execute(
-            `INSERT INTO instructions (recipe_id, step_number, instruction) VALUES (?, ?, ?)`,
-            [id, i + 1, updates.instructions[i]]
-          )
-        }
-      }
-
-      // Atualizar tags se fornecidas
-      if (updates.tags) {
-        await connection.execute(`DELETE FROM recipe_tags WHERE recipe_id = ?`, [id])
-        for (const tagName of updates.tags) {
-          // Verificar se a tag já existe
-          const [existingTags] = await connection.execute(
-            `SELECT id FROM tags WHERE name = ?`,
-            [tagName]
-          ) as any[]
-
-          let tagId: number
-          if (existingTags.length === 0) {
-            const [result] = await connection.execute(
-              `INSERT INTO tags (name) VALUES (?)`,
-              [tagName]
-            ) as any[]
-            tagId = result.insertId
-          } else {
-            tagId = existingTags[0].id
-          }
-
-          await connection.execute(
-            `INSERT INTO recipe_tags (recipe_id, tag_id) VALUES (?, ?)`,
-            [id, tagId]
-          )
-        }
-      }
-
-      console.log("[MySQL] Receita atualizada:", id)
+      console.log("[MongoDB] Receita atualizada:", id)
       return await this.getRecipeById(id) as Recipe
-    } finally {
-      connection.release()
+    } catch (error) {
+      console.error('[MongoDB] Erro ao atualizar receita:', error)
+      throw error
     }
   }
 
-  // DELETE - DELETE FROM recipes WHERE id = ?
+  // DELETE - Deletar receita
   async deleteRecipe(id: string): Promise<boolean> {
     await this.ensureInitialized()
     
-    const connection = await pool.getConnection()
     try {
-      const [result] = await connection.execute(
-        `DELETE FROM recipes WHERE id = ?`,
-        [id]
-      ) as any[]
+      const recipesCollection = await getCollection('recipes')
+      const favoritesCollection = await getCollection('favorites')
+      
+      // Deletar receita
+      const result = await recipesCollection.deleteOne({ id })
+      
+      // Deletar favoritos relacionados
+      await favoritesCollection.deleteMany({ recipeId: id })
 
-      const deleted = result.affectedRows > 0
+      const deleted = result.deletedCount > 0
       if (deleted) {
-        console.log("[MySQL] Receita deletada:", id)
+        console.log("[MongoDB] Receita deletada:", id)
       }
       return deleted
-    } finally {
-      connection.release()
+    } catch (error) {
+      console.error('[MongoDB] Erro ao deletar receita:', error)
+      throw error
     }
   }
 
   // Operações de favoritos
-  async toggleFavorite(recipeId: string): Promise<boolean> {
+  async toggleFavorite(recipeId: string, userId: string = 'default_user'): Promise<boolean> {
     await this.ensureInitialized()
     
-    const connection = await pool.getConnection()
     try {
+      const favoritesCollection = await getCollection('favorites')
+      const recipesCollection = await getCollection('recipes')
+      
       // Verificar se já é favorito
-      const [existing] = await connection.execute(
-        `SELECT id FROM favorites WHERE recipe_id = ? AND user_id = 'default_user'`,
-        [recipeId]
-      ) as any[]
+      const existing = await favoritesCollection.findOne({ recipeId, userId })
 
-      if (existing.length > 0) {
+      if (existing) {
         // Remover favorito
-        await connection.execute(
-          `DELETE FROM favorites WHERE recipe_id = ? AND user_id = 'default_user'`,
-          [recipeId]
-        )
-        await connection.execute(
-          `UPDATE recipes SET favorites_count = favorites_count - 1 WHERE id = ?`,
-          [recipeId]
+        await favoritesCollection.deleteOne({ recipeId, userId })
+        await recipesCollection.updateOne(
+          { id: recipeId },
+          { $inc: { favorites: -1 } }
         )
         return false
       } else {
         // Adicionar favorito
-        await connection.execute(
-          `INSERT INTO favorites (recipe_id, user_id) VALUES (?, 'default_user')`,
-          [recipeId]
-        )
-        await connection.execute(
-          `UPDATE recipes SET favorites_count = favorites_count + 1 WHERE id = ?`,
-          [recipeId]
+        await favoritesCollection.insertOne({
+          recipeId,
+          userId,
+          createdAt: new Date()
+        })
+        await recipesCollection.updateOne(
+          { id: recipeId },
+          { $inc: { favorites: 1 } }
         )
         return true
       }
-    } finally {
-      connection.release()
+    } catch (error) {
+      console.error('[MongoDB] Erro ao toggle favorito:', error)
+      throw error
     }
   }
 
-  async getFavoriteRecipes(): Promise<Recipe[]> {
+  async getFavoriteRecipes(userId: string = 'default_user'): Promise<Recipe[]> {
     await this.ensureInitialized()
     
-    const connection = await pool.getConnection()
     try {
-      const [favorites] = await connection.execute(
-        `SELECT r.* FROM recipes r
-         JOIN favorites f ON r.id = f.recipe_id
-         WHERE f.user_id = 'default_user'
-         ORDER BY f.created_at DESC`
-      ) as any[]
+      const favoritesCollection = await getCollection('favorites')
+      const recipesCollection = await getCollection('recipes')
+      
+      // Buscar IDs das receitas favoritas
+      const favorites = await favoritesCollection
+        .find({ userId })
+        .sort({ createdAt: -1 })
+        .toArray()
 
-      const recipesWithDetails = await Promise.all(
-        favorites.map(async (recipe: any) => {
-          return await this.getRecipeById(recipe.id) as Recipe
-        })
-      )
+      const recipeIds = favorites.map(fav => fav.recipeId)
+      
+      // Buscar receitas favoritas
+      const recipes = await recipesCollection
+        .find({ id: { $in: recipeIds } })
+        .toArray()
 
-      return recipesWithDetails
-    } finally {
-      connection.release()
+      return recipes.map(recipe => ({
+        ...recipe,
+        _id: recipe._id
+      })) as Recipe[]
+    } catch (error) {
+      console.error('[MongoDB] Erro ao buscar receitas favoritas:', error)
+      throw error
     }
   }
 
-  async isFavorite(recipeId: string): Promise<boolean> {
+  async isFavorite(recipeId: string, userId: string = 'default_user'): Promise<boolean> {
     await this.ensureInitialized()
     
-    const connection = await pool.getConnection()
     try {
-      const [favorites] = await connection.execute(
-        `SELECT id FROM favorites WHERE recipe_id = ? AND user_id = 'default_user'`,
-        [recipeId]
-      ) as any[]
-
-      return favorites.length > 0
-    } finally {
-      connection.release()
+      const favoritesCollection = await getCollection('favorites')
+      const favorite = await favoritesCollection.findOne({ recipeId, userId })
+      return !!favorite
+    } catch (error) {
+      console.error('[MongoDB] Erro ao verificar favorito:', error)
+      throw error
     }
   }
 
   // Estatísticas
-  async getRecipeStats() {
+  async getRecipeStats(userId: string = 'default_user') {
     await this.ensureInitialized()
     
-    const connection = await pool.getConnection()
     try {
-      const [totalRecipes] = await connection.execute(
-        `SELECT COUNT(*) as total FROM recipes`
-      ) as any[]
+      const recipesCollection = await getCollection('recipes')
+      const favoritesCollection = await getCollection('favorites')
 
-      const [totalFavorites] = await connection.execute(
-        `SELECT COUNT(*) as total FROM favorites WHERE user_id = 'default_user'`
-      ) as any[]
-
-      const [categoryCounts] = await connection.execute(
-        `SELECT category, COUNT(*) as count FROM recipes GROUP BY category`
-      ) as any[]
-
-      return {
-        totalRecipes: totalRecipes[0].total,
-        totalFavorites: totalFavorites[0].total,
-        categoryCounts: categoryCounts.reduce(
-          (acc: any, row: any) => {
-            acc[row.category] = row.count
+      const totalRecipes = await recipesCollection.countDocuments({})
+      const totalFavorites = await favoritesCollection.countDocuments({ userId })
+      
+      // Contar receitas por categoria
+      const categoryPipeline = [
+        { $group: { _id: "$category", count: { $sum: 1 } } }
+      ]
+      
+      const categoryCounts = await recipesCollection.aggregate(categoryPipeline).toArray()
+      const categoryCountsObj = categoryCounts.reduce(
+        (acc: any, item: any) => {
+          acc[item._id] = item.count
             return acc
           },
           {}
-        ),
+      )
+
+      return {
+        totalRecipes,
+        totalFavorites,
+        categoryCounts: categoryCountsObj,
       }
-    } finally {
-      connection.release()
+    } catch (error) {
+      console.error('[MongoDB] Erro ao buscar estatísticas:', error)
+      throw error
+    }
+  }
+
+  // Funções para categorias
+  async getCategories(userId: string): Promise<any[]> {
+    await this.ensureInitialized()
+    
+    try {
+      const categoriesCollection = await getCollection('user_categories')
+      
+      // Buscar categorias padrão e do usuário
+      const categories = await categoriesCollection
+        .find({
+          $or: [
+            { isDefault: true },
+            { userId: userId, isDefault: false }
+          ]
+        })
+        .sort({ name: 1 })
+        .toArray()
+
+      return categories
+    } catch (error) {
+      console.error('[MongoDB] Erro ao buscar categorias:', error)
+      throw error
+    }
+  }
+
+  async createCategory(userId: string, name: string, slug: string): Promise<any> {
+    await this.ensureInitialized()
+    
+    try {
+      const categoriesCollection = await getCollection('user_categories')
+      
+      // Verificar se já existe
+      const existing = await categoriesCollection.findOne({ userId, slug })
+      if (existing) {
+        throw new Error('Categoria já existe')
+      }
+
+      const newCategory = {
+        userId,
+        name,
+        slug,
+        isDefault: false,
+        createdAt: new Date()
+      }
+
+      const result = await categoriesCollection.insertOne(newCategory)
+      return { ...newCategory, _id: result.insertedId }
+    } catch (error) {
+      console.error('[MongoDB] Erro ao criar categoria:', error)
+      throw error
+    }
+  }
+
+  async deleteCategory(userId: string, slug: string): Promise<boolean> {
+    await this.ensureInitialized()
+    
+    try {
+      const categoriesCollection = await getCollection('user_categories')
+      
+      // Verificar se existe e não é padrão
+      const category = await categoriesCollection.findOne({ userId, slug })
+      if (!category) {
+        throw new Error('Categoria não encontrada')
+      }
+      
+      if (category.isDefault) {
+        throw new Error('Não é possível remover categorias padrão')
+      }
+
+      const result = await categoriesCollection.deleteOne({ userId, slug })
+      return result.deletedCount > 0
+    } catch (error) {
+      console.error('[MongoDB] Erro ao deletar categoria:', error)
+      throw error
+    }
+  }
+
+  // Função de debug para listar todas as categorias
+  async getAllCategories(): Promise<any[]> {
+    await this.ensureInitialized()
+    
+    try {
+      const categoriesCollection = await getCollection('user_categories')
+      const allCategories = await categoriesCollection.find({}).toArray()
+      return allCategories
+    } catch (error) {
+      console.error('[MongoDB] Erro ao buscar todas as categorias:', error)
+      throw error
     }
   }
 }
 
 // Singleton instance
-export const db = new MySQLDatabase()
+export const db = new MongoDatabase()
 
   // Função para popular dados de exemplo (apenas na primeira vez)
   export const seedDatabase = async () => {
@@ -526,7 +462,7 @@ export const db = new MySQLDatabase()
       const recipes = await db.getAllRecipes()
     
     if (recipes.length === 0) {
-      console.log("[MySQL] Populando banco com receitas de exemplo...")
+      console.log("[MongoDB] Populando banco com receitas de exemplo...")
 
       const sampleRecipes = [
         {
@@ -537,6 +473,7 @@ export const db = new MySQLDatabase()
           servings: "4",
           difficulty: "facil",
           category: "pratos-principais",
+          temperature: "",
           ingredients: [
             { item: "Massa penne", quantity: "400g" },
             { item: "Manjericão fresco", quantity: "1 xícara" },
@@ -559,6 +496,7 @@ export const db = new MySQLDatabase()
           servings: "8",
           difficulty: "medio",
           category: "sobremesas",
+          temperature: "180°C",
           ingredients: [
             { item: "Farinha de trigo", quantity: "2 xícaras" },
             { item: "Chocolate em pó", quantity: "1/2 xícara" },
@@ -580,6 +518,6 @@ export const db = new MySQLDatabase()
       }
     }
   } catch (error) {
-    console.error("[MySQL] Erro ao popular banco de dados:", error)
+    console.error("[MongoDB] Erro ao popular banco de dados:", error)
   }
 }

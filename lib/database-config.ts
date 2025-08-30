@@ -1,99 +1,83 @@
-import mysql from 'mysql2/promise'
+import { MongoClient, Db, Collection } from 'mongodb'
 
-// Configuração do banco de dados MySQL
+// Configuração do banco de dados MongoDB
 export const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '', // Senha padrão do XAMPP é vazia
+  uri: process.env.MONGODB_URI || 'mongodb://localhost:27017',
   database: process.env.DB_NAME || 'livro_receitas',
-  port: parseInt(process.env.DB_PORT || '3306'),
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
 }
 
-// Pool de conexões
-export const pool = mysql.createPool(dbConfig)
+// Cliente MongoDB
+let client: MongoClient | null = null
+let db: Db | null = null
 
-// Função para inicializar o banco de dados
-export async function initializeDatabase() {
+// Função para conectar ao MongoDB
+export async function connectToDatabase(): Promise<Db> {
+  if (db) {
+    return db
+  }
+
   try {
-    const connection = await pool.getConnection()
+    client = new MongoClient(dbConfig.uri)
+    await client.connect()
+    db = client.db(dbConfig.database)
     
-    // Criar banco de dados se não existir
-    await connection.execute(`CREATE DATABASE IF NOT EXISTS ${dbConfig.database}`)
-    await connection.execute(`USE ${dbConfig.database}`)
-    
-    // Criar tabelas
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS recipes (
-        id VARCHAR(36) PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
-        description TEXT,
-        prep_time VARCHAR(50),
-        cook_time VARCHAR(50),
-        servings VARCHAR(10),
-        difficulty ENUM('facil', 'medio', 'dificil'),
-        category VARCHAR(100),
-        image_url TEXT,
-        rating DECIMAL(3,2) DEFAULT 0,
-        favorites_count INT DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
-    `)
-    
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS ingredients (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        recipe_id VARCHAR(36),
-        item VARCHAR(255) NOT NULL,
-        quantity VARCHAR(100),
-        FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
-      )
-    `)
-    
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS instructions (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        recipe_id VARCHAR(36),
-        step_number INT,
-        instruction TEXT NOT NULL,
-        FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
-      )
-    `)
-    
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS tags (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(100) UNIQUE
-      )
-    `)
-    
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS recipe_tags (
-        recipe_id VARCHAR(36),
-        tag_id INT,
-        PRIMARY KEY (recipe_id, tag_id),
-        FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,
-        FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
-      )
-    `)
-    
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS favorites (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        recipe_id VARCHAR(36),
-        user_id VARCHAR(36) DEFAULT 'default_user',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
-      )
-    `)
-    
-    connection.release()
-    console.log('[MySQL] Banco de dados inicializado com sucesso!')
+    console.log('[MongoDB] Conectado com sucesso ao banco:', dbConfig.database)
+    return db
   } catch (error) {
-    console.error('[MySQL] Erro ao inicializar banco de dados:', error)
+    console.error('[MongoDB] Erro ao conectar:', error)
     throw error
   }
 }
+
+// Função para obter uma coleção
+export async function getCollection(collectionName: string): Promise<Collection> {
+  const database = await connectToDatabase()
+  return database.collection(collectionName)
+}
+
+// Função para desconectar (útil para testes)
+export async function disconnect(): Promise<void> {
+  if (client) {
+    await client.close()
+    client = null
+    db = null
+    console.log('[MongoDB] Desconectado do banco')
+  }
+}
+
+// Função para inicializar o banco de dados (criar índices se necessário)
+export async function initializeDatabase(): Promise<void> {
+  try {
+    const database = await connectToDatabase()
+    
+    // Criar índices para melhor performance
+    const recipesCollection = database.collection('recipes')
+    await recipesCollection.createIndex({ title: 'text', description: 'text' })
+    await recipesCollection.createIndex({ category: 1 })
+    await recipesCollection.createIndex({ difficulty: 1 })
+    await recipesCollection.createIndex({ rating: -1 })
+    await recipesCollection.createIndex({ createdAt: -1 })
+    await recipesCollection.createIndex({ 'tags': 1 })
+
+    const favoritesCollection = database.collection('favorites')
+    await favoritesCollection.createIndex({ recipeId: 1, userId: 1 }, { unique: true })
+
+    const categoriesCollection = database.collection('user_categories')
+    await categoriesCollection.createIndex({ userId: 1, slug: 1 }, { unique: true })
+
+    console.log('[MongoDB] Banco de dados inicializado com sucesso!')
+  } catch (error) {
+    console.error('[MongoDB] Erro ao inicializar banco de dados:', error)
+    throw error
+  }
+}
+
+// Categorias padrão do sistema
+export const defaultCategories = [
+  { userId: 'system', name: 'Pratos Principais', slug: 'pratos-principais', isDefault: true },
+  { userId: 'system', name: 'Sobremesas', slug: 'sobremesas', isDefault: true },
+  { userId: 'system', name: 'Entradas', slug: 'entradas', isDefault: true },
+  { userId: 'system', name: 'Bebidas', slug: 'bebidas', isDefault: true },
+  { userId: 'system', name: 'Vegetariano', slug: 'vegetariano', isDefault: true },
+  { userId: 'system', name: 'Doces', slug: 'doces', isDefault: true },
+]

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,117 +12,15 @@ import { Separator } from "@/components/ui/separator"
 import { Search, X, SlidersHorizontal } from "lucide-react"
 import { RecipeCard } from "@/components/recipe-card"
 import { MainNav } from "@/components/main-nav"
+import type { Recipe } from "@/lib/database"
 
-// Extended mock data for search functionality
-const allRecipes = [
-  {
-    id: "1",
-    title: "Pasta com Ervas Frescas",
-    description: "Uma receita clássica italiana com manjericão e tomates",
-    image: "/placeholder.svg?height=200&width=300",
-    prepTime: "15 min",
-    cookTime: "15 min",
-    totalTime: "30 min",
-    servings: 4,
-    difficulty: "Fácil",
-    rating: 4.8,
-    category: "Pratos Principais",
-    tags: ["Italiano", "Vegetariano", "Rápido"],
-    isFavorite: false,
-  },
-  {
-    id: "2",
-    title: "Bolo de Chocolate Cremoso",
-    description: "Sobremesa irresistível para ocasiões especiais",
-    image: "/placeholder.svg?height=200&width=300",
-    prepTime: "30 min",
-    cookTime: "45 min",
-    totalTime: "75 min",
-    servings: 8,
-    difficulty: "Médio",
-    rating: 4.9,
-    category: "Sobremesas",
-    tags: ["Chocolate", "Festa", "Doce"],
-    isFavorite: true,
-  },
-  {
-    id: "3",
-    title: "Salada Mediterrânea",
-    description: "Combinação perfeita de sabores frescos e saudáveis",
-    image: "/placeholder.svg?height=200&width=300",
-    prepTime: "15 min",
-    cookTime: "0 min",
-    totalTime: "15 min",
-    servings: 2,
-    difficulty: "Fácil",
-    rating: 4.7,
-    category: "Entradas",
-    tags: ["Saudável", "Vegetariano", "Mediterrâneo"],
-    isFavorite: false,
-  },
-  {
-    id: "4",
-    title: "Risotto de Cogumelos",
-    description: "Prato cremoso e sofisticado da culinária italiana",
-    image: "/placeholder.svg?height=200&width=300",
-    prepTime: "20 min",
-    cookTime: "25 min",
-    totalTime: "45 min",
-    servings: 4,
-    difficulty: "Médio",
-    rating: 4.6,
-    category: "Pratos Principais",
-    tags: ["Italiano", "Vegetariano", "Cremoso"],
-    isFavorite: false,
-  },
-  {
-    id: "5",
-    title: "Smoothie Verde Detox",
-    description: "Bebida nutritiva e refrescante para começar o dia",
-    image: "/placeholder.svg?height=200&width=300",
-    prepTime: "5 min",
-    cookTime: "0 min",
-    totalTime: "5 min",
-    servings: 1,
-    difficulty: "Fácil",
-    rating: 4.4,
-    category: "Bebidas",
-    tags: ["Saudável", "Detox", "Rápido", "Vegetariano"],
-    isFavorite: true,
-  },
-  {
-    id: "6",
-    title: "Lasanha de Berinjela",
-    description: "Versão mais leve da lasanha tradicional",
-    image: "/placeholder.svg?height=200&width=300",
-    prepTime: "40 min",
-    cookTime: "35 min",
-    totalTime: "75 min",
-    servings: 6,
-    difficulty: "Médio",
-    rating: 4.5,
-    category: "Pratos Principais",
-    tags: ["Vegetariano", "Saudável", "Italiano"],
-    isFavorite: false,
-  },
-]
-
-const categories = ["Todos", "Pratos Principais", "Sobremesas", "Entradas", "Bebidas", "Vegetariano", "Doces"]
 const difficulties = ["Todos", "Fácil", "Médio", "Difícil"]
-const tags = [
-  "Italiano",
-  "Vegetariano",
-  "Saudável",
-  "Rápido",
-  "Chocolate",
-  "Festa",
-  "Doce",
-  "Mediterrâneo",
-  "Cremoso",
-  "Detox",
-]
 
 export default function SearchPage() {
+  const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [categories, setCategories] = useState<string[]>(["Todos"])
+  const [tags, setTags] = useState<string[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("Todos")
   const [selectedDifficulty, setSelectedDifficulty] = useState("Todos")
@@ -131,35 +29,88 @@ export default function SearchPage() {
   const [minRating, setMinRating] = useState([0])
   const [showFilters, setShowFilters] = useState(false)
 
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Carregar receitas
+        const recipesResponse = await fetch('/api/recipes')
+        if (recipesResponse.ok) {
+          const recipesData: Recipe[] = await recipesResponse.json()
+          setRecipes(recipesData)
+
+          // Extrair tags únicas
+          const allTags = recipesData.flatMap((r: Recipe) => r.tags || [])
+          const uniqueTags = Array.from(new Set(allTags))
+          setTags(uniqueTags)
+        }
+
+        // Carregar todas as categorias (padrões e do usuário)
+        const categoriesResponse = await fetch('/api/categories?userId=default_user')
+        if (categoriesResponse.ok) {
+          const categoriesData = await categoriesResponse.json()
+          const allCategories = categoriesData.categories || []
+          const categoryNames = allCategories.map((cat: any) => cat.name)
+          setCategories(["Todos", ...categoryNames])
+        }
+      } catch (error) {
+        console.error("Erro ao carregar dados:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadData()
+  }, [])
+
   const filteredRecipes = useMemo(() => {
-    return allRecipes.filter((recipe) => {
+    return recipes.filter((recipe) => {
       // Filtro por termo de busca
       const matchesSearch =
         searchTerm === "" ||
         recipe.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         recipe.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        recipe.ingredients.some((ingredient) => ingredient.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        recipe.ingredients.some((ingredient) => ingredient.item.toLowerCase().includes(searchTerm.toLowerCase())) ||
         recipe.tags.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
 
       // Filtro por categoria
       const matchesCategory = selectedCategory === "Todos" || recipe.category === selectedCategory
 
       // Filtro por dificuldade
-      const matchesDifficulty = selectedDifficulty === "Todos" || recipe.difficulty === selectedDifficulty
+      const difficultyMap = { "facil": "Fácil", "medio": "Médio", "dificil": "Difícil" }
+      const recipeDifficulty = difficultyMap[recipe.difficulty as keyof typeof difficultyMap] || recipe.difficulty
+      const matchesDifficulty = selectedDifficulty === "Todos" || recipeDifficulty === selectedDifficulty
 
       // Filtro por tags
       const matchesTags = selectedTags.length === 0 || selectedTags.some((tag) => recipe.tags.includes(tag))
 
       // Filtro por tempo
-      const recipeTimeInMinutes = Number.parseInt(recipe.totalTime.replace(/\D/g, "")) || 0
-      const matchesTime = recipeTimeInMinutes <= maxTime[0]
+      const prepTime = parseInt(recipe.prepTime?.replace(/\D/g, "") || "0")
+      const cookTime = parseInt(recipe.cookTime?.replace(/\D/g, "") || "0")
+      const totalTime = prepTime + cookTime
+      const matchesTime = totalTime <= maxTime[0]
 
       // Filtro por avaliação
       const matchesRating = recipe.rating >= minRating[0]
 
       return matchesSearch && matchesCategory && matchesDifficulty && matchesTags && matchesTime && matchesRating
     })
-  }, [searchTerm, selectedCategory, selectedDifficulty, selectedTags, maxTime, minRating])
+  }, [recipes, searchTerm, selectedCategory, selectedDifficulty, selectedTags, maxTime, minRating])
+
+  const mapRecipeToCardFormat = (recipe: Recipe) => ({
+    id: recipe.id,
+    title: recipe.title,
+    description: recipe.description,
+    image: recipe.imageUrl || "/placeholder.svg?height=200&width=300",
+    prepTime: recipe.prepTime,
+    cookTime: recipe.cookTime,
+    totalTime: `${(parseInt(recipe.prepTime || "0") + parseInt(recipe.cookTime || "0"))} min`,
+    servings: parseInt(recipe.servings || "1"),
+    difficulty: recipe.difficulty === "facil" ? "Fácil" : recipe.difficulty === "medio" ? "Médio" : "Difícil",
+    rating: recipe.rating || 0,
+    category: recipe.category,
+    tags: recipe.tags,
+    isFavorite: false, // Será atualizado dinamicamente
+  })
 
   const handleTagToggle = (tag: string) => {
     setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]))
@@ -344,11 +295,21 @@ export default function SearchPage() {
             </div>
 
             {/* Recipe Grid */}
-            {filteredRecipes.length > 0 ? (
+            {isLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="bg-muted rounded-lg h-64 mb-4"></div>
+                    <div className="bg-muted rounded h-4 mb-2"></div>
+                    <div className="bg-muted rounded h-3 w-3/4"></div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredRecipes.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredRecipes.map((recipe, index) => (
                   <div key={recipe.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 50}ms` }}>
-                    <RecipeCard recipe={recipe} />
+                    <RecipeCard recipe={mapRecipeToCardFormat(recipe)} />
                   </div>
                 ))}
               </div>

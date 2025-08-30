@@ -1,44 +1,50 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Heart } from "lucide-react"
 import { RecipeCard } from "@/components/recipe-card"
 import { MainNav } from "@/components/main-nav"
 import Link from "next/link"
-
-// Mock data for favorite recipes
-const favoriteRecipes = [
-  {
-    id: "2",
-    title: "Bolo de Chocolate Cremoso",
-    description: "Sobremesa irresistível para ocasiões especiais",
-    image: "/placeholder.svg?height=200&width=300",
-    prepTime: "30 min",
-    cookTime: "45 min",
-    totalTime: "1h 15min",
-    servings: 8,
-    difficulty: "Médio",
-    rating: 4.9,
-    category: "Sobremesas",
-    tags: ["Chocolate", "Festa", "Doce"],
-    isFavorite: true,
-  },
-  {
-    id: "5",
-    title: "Smoothie Verde Detox",
-    description: "Bebida nutritiva e refrescante para começar o dia",
-    image: "/placeholder.svg?height=200&width=300",
-    prepTime: "5 min",
-    cookTime: "0 min",
-    totalTime: "5 min",
-    servings: 1,
-    difficulty: "Fácil",
-    rating: 4.4,
-    category: "Bebidas",
-    tags: ["Saudável", "Detox", "Rápido", "Vegetariano"],
-    isFavorite: true,
-  },
-]
+import type { Recipe } from "@/lib/database"
 
 export default function FavoritesPage() {
+  const [favoriteRecipes, setFavoriteRecipes] = useState<Recipe[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const loadFavorites = async () => {
+      try {
+        const response = await fetch('/api/favorites')
+        if (response.ok) {
+          const data = await response.json()
+          setFavoriteRecipes(data.favorites || [])
+        }
+      } catch (error) {
+        console.error("Erro ao carregar favoritos:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadFavorites()
+  }, [])
+
+  const mapRecipeToCardFormat = (recipe: Recipe) => ({
+    id: recipe.id,
+    title: recipe.title,
+    description: recipe.description,
+    image: recipe.imageUrl || "/placeholder.svg?height=200&width=300",
+    prepTime: recipe.prepTime,
+    cookTime: recipe.cookTime,
+    totalTime: `${(parseInt(recipe.prepTime || "0") + parseInt(recipe.cookTime || "0"))} min`,
+    servings: parseInt(recipe.servings || "1"),
+    difficulty: recipe.difficulty === "facil" ? "Fácil" : recipe.difficulty === "medio" ? "Médio" : "Difícil",
+    rating: recipe.rating || 0,
+    category: recipe.category,
+    tags: recipe.tags,
+    isFavorite: true,
+  })
   return (
     <div className="min-h-screen bg-background">
       <MainNav />
@@ -52,7 +58,17 @@ export default function FavoritesPage() {
           <p className="text-muted-foreground">Suas receitas salvas em um só lugar</p>
         </div>
 
-        {favoriteRecipes.length > 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="animate-pulse">
+                <div className="bg-muted rounded-lg h-64 mb-4"></div>
+                <div className="bg-muted rounded h-4 mb-2"></div>
+                <div className="bg-muted rounded h-3 w-3/4"></div>
+              </div>
+            ))}
+          </div>
+        ) : favoriteRecipes.length > 0 ? (
           <>
             <p className="text-muted-foreground text-center mb-8">
               {favoriteRecipes.length} receita{favoriteRecipes.length !== 1 ? "s" : ""} salva
@@ -61,7 +77,7 @@ export default function FavoritesPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {favoriteRecipes.map((recipe, index) => (
                 <div key={recipe.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 100}ms` }}>
-                  <RecipeCard recipe={recipe} />
+                  <RecipeCard recipe={mapRecipeToCardFormat(recipe)} />
                 </div>
               ))}
             </div>

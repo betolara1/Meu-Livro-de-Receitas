@@ -11,12 +11,13 @@ import type { Recipe } from "@/lib/database"
 
 export default function RecipeBookHome() {
   const [featuredRecipes, setFeaturedRecipes] = useState<Recipe[]>([])
+  const [categories, setCategories] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const loadRecipes = async () => {
+    const loadData = async () => {
       try {
-        console.log("[API] Carregando receitas...")
+        console.log("[API] Carregando dados...")
 
         // Busca todas as receitas via API
         let response = await fetch('/api/recipes')
@@ -45,14 +46,26 @@ export default function RecipeBookHome() {
           .slice(0, 6)
 
         setFeaturedRecipes(featured)
+
+        // Busca todas as categorias (padrões e do usuário)
+        console.log("[API] Carregando categorias...")
+        const categoriesResponse = await fetch('/api/categories?userId=default_user')
+        
+        if (categoriesResponse.ok) {
+          const categoriesData = await categoriesResponse.json()
+          setCategories(categoriesData.categories || [])
+          console.log("[API] Categorias carregadas:", categoriesData.categories?.length || 0)
+        } else {
+          console.error("[API] Erro ao carregar categorias")
+        }
       } catch (error) {
-        console.error("[API] Erro ao carregar receitas:", error)
+        console.error("[API] Erro ao carregar dados:", error)
       } finally {
         setIsLoading(false)
       }
     }
 
-    loadRecipes()
+    loadData()
   }, [])
 
   const mapRecipeToCardFormat = (recipe: Recipe) => ({
@@ -103,18 +116,32 @@ export default function RecipeBookHome() {
       {/* Categories */}
       <section className="container mx-auto px-4 pb-8">
         <h2 className="text-2xl font-serif font-semibold mb-6 text-center">Categorias</h2>
-        <div className="flex flex-wrap justify-center gap-3">
-          {["Pratos Principais", "Sobremesas", "Entradas", "Bebidas", "Vegetariano", "Doces"].map((category) => (
-            <Link key={category} href={`/buscar?categoria=${encodeURIComponent(category)}`}>
-              <Badge
-                variant="secondary"
-                className="px-4 py-2 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground transition-all duration-200 hover:scale-105"
-              >
-                {category}
-              </Badge>
-            </Link>
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="flex flex-wrap justify-center gap-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="animate-pulse">
+                <div className="w-24 h-8 bg-muted rounded-full"></div>
+              </div>
+            ))}
+          </div>
+        ) : categories.length > 0 ? (
+          <div className="flex flex-wrap justify-center gap-3">
+            {categories.map((category) => (
+              <Link key={category.slug} href={`/buscar?categoria=${encodeURIComponent(category.name)}`}>
+                <Badge
+                  variant={category.isDefault ? "secondary" : "default"}
+                  className="px-4 py-2 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground transition-all duration-200 hover:scale-105"
+                >
+                  {category.name}
+                </Badge>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">Carregando categorias...</p>
+          </div>
+        )}
       </section>
 
       {/* Featured Recipes */}

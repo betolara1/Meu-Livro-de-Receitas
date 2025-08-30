@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,14 +13,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Plus, X, Upload, Clock, Users, ChefHat, Camera, FileImage, Loader2, Wand2 } from "lucide-react"
 import Link from "next/link"
+import { PageHeader } from "@/components/page-header"
 
 export default function NewRecipePage() {
   const [ingredients, setIngredients] = useState([{ item: "", quantity: "" }])
   const [instructions, setInstructions] = useState([""])
   const [tags, setTags] = useState<string[]>([])
   const [newTag, setNewTag] = useState("")
+  const [categories, setCategories] = useState<Array<{name: string, slug: string, is_default: boolean}>>([])
+  const [newCategory, setNewCategory] = useState("")
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true)
   const [ocrImage, setOcrImage] = useState<string | null>(null)
+  const [recipeImages, setRecipeImages] = useState<string[]>([])
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -29,6 +35,7 @@ export default function NewRecipePage() {
     servings: "",
     difficulty: "",
     category: "",
+    temperature: "",
   })
   const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
@@ -70,6 +77,111 @@ export default function NewRecipePage() {
     setTags(tags.filter((tag) => tag !== tagToRemove))
   }
 
+  const addCategory = async () => {
+    if (newCategory.trim()) {
+      const categoryName = newCategory.trim()
+      const categorySlug = categoryName.toLowerCase().replace(/\s+/g, '-')
+      
+      // Verificar se já existe
+      if (categories.some(cat => cat.slug === categorySlug)) {
+        alert('Esta categoria já existe!')
+        return
+      }
+
+      try {
+        // Salvar no banco de dados
+        const response = await fetch('/api/categories', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: 'default_user',
+            name: categoryName,
+            slug: categorySlug
+          }),
+        })
+
+        if (response.ok) {
+          const newCategoryData = {
+            name: categoryName,
+            slug: categorySlug,
+            is_default: false
+          }
+          
+          setCategories(prev => [...prev, newCategoryData])
+          setFormData(prev => ({ ...prev, category: categorySlug }))
+          setNewCategory("")
+          setShowNewCategoryInput(false)
+        } else {
+          throw new Error('Erro ao salvar categoria')
+        }
+      } catch (error) {
+        console.error('Erro ao criar categoria:', error)
+        alert('Erro ao criar categoria. Tente novamente.')
+      }
+    }
+  }
+
+  const removeCategory = async (categoryToRemove: {name: string, slug: string, is_default: boolean}) => {
+    if (categoryToRemove.is_default) {
+      alert('Não é possível remover categorias padrão!')
+      return
+    }
+
+    if (formData.category === categoryToRemove.slug) {
+      setFormData(prev => ({ ...prev, category: "" }))
+    }
+
+    try {
+      // Remover do banco de dados
+              const response = await fetch(`/api/categories?userId=default_user&slug=${categoryToRemove.slug}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        setCategories(prev => prev.filter(cat => cat.slug !== categoryToRemove.slug))
+      } else {
+        throw new Error('Erro ao remover categoria')
+      }
+    } catch (error) {
+      console.error('Erro ao remover categoria:', error)
+      alert('Erro ao remover categoria. Tente novamente.')
+    }
+  }
+
+  const loadCategories = async () => {
+    try {
+      setIsLoadingCategories(true)
+      const response = await fetch('/api/categories?userId=default_user')
+      
+      if (response.ok) {
+        const data = await response.json()
+        setCategories(data.categories)
+      } else {
+        throw new Error('Erro ao carregar categorias')
+      }
+    } catch (error) {
+      console.error('Erro ao carregar categorias:', error)
+      // Fallback para categorias padrão em caso de erro
+      setCategories([
+        { name: 'Pratos Principais', slug: 'pratos-principais', is_default: true },
+        { name: 'Sobremesas', slug: 'sobremesas', is_default: true },
+        { name: 'Entradas', slug: 'entradas', is_default: true },
+        { name: 'Bebidas', slug: 'bebidas', is_default: true },
+        { name: 'Vegetariano', slug: 'vegetariano', is_default: true },
+        { name: 'Doces', slug: 'doces', is_default: true }
+      ])
+    } finally {
+      setIsLoadingCategories(false)
+    }
+  }
+
+  // Carregar categorias na inicialização
+  useEffect(() => {
+    loadCategories()
+  }, [])
+
   const convertImageToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
@@ -81,6 +193,48 @@ export default function NewRecipePage() {
       }
       reader.onerror = reject
       reader.readAsDataURL(file)
+    })
+  }
+
+  const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.8): Promise<File> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')!
+      const img = new Image()
+      
+      img.onload = () => {
+        // Calcular novas dimensões mantendo proporção
+        let { width, height } = img
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width
+          width = maxWidth
+        }
+        
+        canvas.width = width
+        canvas.height = height
+        
+        // Desenhar imagem redimensionada
+        ctx.drawImage(img, 0, 0, width, height)
+        
+        // Converter para blob com qualidade reduzida
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name, {
+                type: file.type,
+                lastModified: Date.now()
+              })
+              resolve(compressedFile)
+            } else {
+              resolve(file) // Fallback para arquivo original
+            }
+          },
+          file.type,
+          quality
+        )
+      }
+      
+      img.src = URL.createObjectURL(file)
     })
   }
 
@@ -177,7 +331,7 @@ Instruções importantes:
     }
   }
 
-  const fillFormWithGeminiData = (recipeData: any) => {
+  const fillFormWithGeminiData = async (recipeData: any) => {
     // Preencher informações básicas
     setFormData((prev) => ({
       ...prev,
@@ -186,6 +340,7 @@ Instruções importantes:
       prepTime: recipeData.prepTime || prev.prepTime,
       cookTime: recipeData.cookTime || prev.cookTime,
       servings: recipeData.servings?.toString() || prev.servings,
+      temperature: recipeData.temperature || prev.temperature,
     }))
 
     // Preencher ingredientes
@@ -206,13 +361,81 @@ Instruções importantes:
     if (recipeData.temperature) {
       setTags((prev) => [...prev, recipeData.temperature])
     }
+
+    // Adicionar categoria se disponível e não existir
+    if (recipeData.category && !categories.some(cat => cat.slug === recipeData.category.toLowerCase().replace(/\s+/g, '-'))) {
+      const categoryName = recipeData.category
+      const categorySlug = recipeData.category.toLowerCase().replace(/\s+/g, '-')
+      
+      // Criar categoria automaticamente no banco
+      try {
+        const response = await fetch('/api/categories', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: 'default_user',
+            name: categoryName,
+            slug: categorySlug
+          }),
+        })
+
+        if (response.ok) {
+          const newCategoryData = {
+            name: categoryName,
+            slug: categorySlug,
+            is_default: false
+          }
+          
+          setCategories(prev => [...prev, newCategoryData])
+          setFormData(prev => ({ ...prev, category: categorySlug }))
+        }
+      } catch (error) {
+        console.error('Erro ao criar categoria automaticamente:', error)
+      }
+    }
   }
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file && file.type.startsWith("image/")) {
-      processImageWithGemini(file)
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files) return
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      if (file && file.type.startsWith("image/")) {
+        if (event.target.id === 'recipe-image-upload') {
+                      try {
+              // Comprimir imagem antes de armazenar
+              const compressedFile = await compressImage(file, 800, 0.8)
+              
+              // Converter para Data URL para persistência no banco
+              const reader = new FileReader()
+              reader.onload = () => {
+                const dataUrl = reader.result as string
+                setRecipeImages(prev => [...prev, dataUrl])
+              }
+              reader.readAsDataURL(compressedFile)
+            } catch (error) {
+              console.error('Erro ao comprimir imagem:', error)
+              
+              // Fallback para arquivo original como Data URL
+              const reader = new FileReader()
+              reader.onload = () => {
+                const dataUrl = reader.result as string
+                setRecipeImages(prev => [...prev, dataUrl])
+              }
+              reader.readAsDataURL(file)
+            }
+        } else if (event.target.id === 'ocr-image-upload') {
+          // Se for do OCR, processa com Gemini
+          processImageWithGemini(file)
+        }
+      }
     }
+    
+    // Limpar o input para permitir selecionar o mesmo arquivo novamente
+    event.target.value = ''
   }
 
   const handleCameraCapture = async () => {
@@ -260,21 +483,15 @@ Instruções importantes:
   const handleSaveRecipe = async (isDraft = false) => {
     setIsSaving(true)
     try {
-      // Validação básica
+      // Validação básica - apenas título é obrigatório
       if (!formData.title.trim()) {
         alert("Por favor, adicione um título para a receita")
         return
       }
 
-      if (ingredients.some((ing) => !ing.item.trim())) {
-        alert("Por favor, preencha todos os ingredientes")
-        return
-      }
-
-      if (instructions.some((inst) => !inst.trim())) {
-        alert("Por favor, preencha todas as instruções")
-        return
-      }
+      // Filtra ingredientes e instruções vazios
+      const validIngredients = ingredients.filter((ing) => ing.item.trim())
+      const validInstructions = instructions.filter((inst) => inst.trim())
 
       console.log("[API] Salvando receita...")
 
@@ -286,10 +503,11 @@ Instruções importantes:
         servings: formData.servings,
         difficulty: formData.difficulty,
         category: formData.category,
-        ingredients: ingredients.filter((ing) => ing.item.trim()),
-        instructions: instructions.filter((inst) => inst.trim()),
+        temperature: formData.temperature,
+        ingredients: validIngredients,
+        instructions: validInstructions,
         tags,
-        imageUrl: ocrImage || undefined,
+        imageUrl: recipeImages[0] || null,
       }
 
       const response = await fetch('/api/recipes', {
@@ -311,8 +529,8 @@ Instruções importantes:
         alert("Receita salva como rascunho!")
       } else {
         alert("Receita publicada com sucesso!")
-        router.push(`/receita/${savedRecipe.id}`)
       }
+      router.push("/")
     } catch (error) {
       console.error("[v0] Erro ao salvar receita:", error)
       alert("Erro ao salvar receita. Tente novamente.")
@@ -323,32 +541,26 @@ Instruções importantes:
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card book-page sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/">
-              <Button variant="ghost" size="sm" className="gap-2">
-                <ArrowLeft className="h-4 w-4" />
-                Voltar
-              </Button>
-            </Link>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => handleSaveRecipe(true)} disabled={isSaving}>
-                {isSaving ? "Salvando..." : "Salvar Rascunho"}
-              </Button>
-              <Button onClick={() => handleSaveRecipe(false)} disabled={isSaving}>
-                {isSaving ? "Publicando..." : "Publicar Receita"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <PageHeader showActions={false}>
+        <Link href="/">
+          <Button variant="ghost" size="sm" className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Voltar
+          </Button>
+        </Link>
+        <Button variant="outline" onClick={() => handleSaveRecipe(true)} disabled={isSaving}>
+          {isSaving ? "Salvando..." : "Salvar Rascunho"}
+        </Button>
+        <Button onClick={() => handleSaveRecipe(false)} disabled={isSaving}>
+          {isSaving ? "Publicando..." : "Publicar Receita"}
+        </Button>
+      </PageHeader>
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-serif font-bold text-foreground mb-3">Nova Receita</h1>
           <p className="text-lg text-muted-foreground">Compartilhe sua receita especial com o mundo</p>
+          <p className="text-sm text-muted-foreground mt-2">* Apenas o título é obrigatório. Você pode preencher os outros campos depois!</p>
         </div>
 
         <form
@@ -371,7 +583,7 @@ Instruções importantes:
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-4">
+                <div className="space-y-4 flex flex-col items-center">
                   <Button
                     type="button"
                     variant="outline"
@@ -383,13 +595,14 @@ Instruções importantes:
                     Tirar Foto
                   </Button>
 
-                  <div className="relative">
+                  <div className="relative w-full max-w-sm">
                     <input
                       type="file"
                       accept="image/*"
                       onChange={handleImageUpload}
                       disabled={isProcessing}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      id="ocr-image-upload"
                     />
                     <Button
                       type="button"
@@ -408,10 +621,19 @@ Instruções importantes:
                     {ocrImage && (
                       <div className="relative">
                         <img
-                          src={ocrImage || "/placeholder.svg"}
-                          alt="Receita capturada"
+                          src={ocrImage}
+                          alt="Receita capturada para OCR"
                           className="w-full h-32 object-cover rounded-lg border"
                         />
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setOcrImage(null)}
+                          className="absolute top-2 right-2 bg-background/80 hover:bg-background"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
                     )}
 
@@ -434,13 +656,14 @@ Instruções importantes:
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="title">Título da Receita</Label>
+                <Label htmlFor="title">Título da Receita *</Label>
                 <Input
                   id="title"
                   placeholder="Ex: Pasta com Ervas Frescas"
                   className="text-lg"
                   value={formData.title}
                   onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+                  required
                 />
               </div>
 
@@ -456,19 +679,90 @@ Instruções importantes:
               </div>
 
               <div className="space-y-2">
-                <Label>Foto da Receita</Label>
+                <Label>Fotos da Receita</Label>
                 <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                  <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground mb-2">Clique para fazer upload ou arraste uma imagem</p>
-                  <Button variant="outline" size="sm">
-                    Escolher Arquivo
-                  </Button>
+                  {/* Input de arquivo sempre disponível (escondido) */}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    id="recipe-image-upload"
+                  />
+                  
+                  {recipeImages.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {recipeImages.map((imageUrl, index) => (
+                          <div key={index} className="relative group">
+                            <img
+                              src={imageUrl}
+                              alt={`Foto ${index + 1} da receita`}
+                              className="w-full h-24 object-cover rounded-lg border"
+                            />
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setRecipeImages(prev => prev.filter((_, i) => i !== index))}
+                              className="absolute top-1 right-1 bg-background/80 hover:bg-background opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-2 justify-center">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            const fileInput = document.getElementById('recipe-image-upload') as HTMLInputElement
+                            fileInput?.click()
+                          }}
+                          className="gap-2"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Adicionar Mais Fotos
+                        </Button>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setRecipeImages([])}
+                          className="gap-2"
+                        >
+                          <X className="h-4 w-4" />
+                          Limpar Todas
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground mb-2">Clique para fazer upload ou arraste imagens</p>
+                      <p className="text-xs text-muted-foreground mb-4">Você pode selecionar múltiplas imagens</p>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          const fileInput = document.getElementById('recipe-image-upload') as HTMLInputElement
+                          fileInput?.click()
+                        }}
+                      >
+                        Escolher Arquivos
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="prep-time">Tempo de Preparo</Label>
+                  <Label htmlFor="prep-time" className="text-sm font-medium text-muted-foreground">Tempo de Preparo</Label>
                   <div className="relative">
                     <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -478,10 +772,11 @@ Instruções importantes:
                       value={formData.prepTime}
                       onChange={(e) => setFormData((prev) => ({ ...prev, prepTime: e.target.value }))}
                     />
+                    <p className="text-xs text-muted-foreground mt-1">Em minutos</p>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="cook-time">Tempo de Cozimento</Label>
+                  <Label htmlFor="cook-time" className="text-sm font-medium text-muted-foreground">Tempo de Cozimento</Label>
                   <div className="relative">
                     <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -491,10 +786,11 @@ Instruções importantes:
                       value={formData.cookTime}
                       onChange={(e) => setFormData((prev) => ({ ...prev, cookTime: e.target.value }))}
                     />
+                    <p className="text-xs text-muted-foreground mt-1">Em minutos</p>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="servings">Porções</Label>
+                  <Label htmlFor="servings" className="text-sm font-medium text-muted-foreground">Porções</Label>
                   <div className="relative">
                     <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -504,10 +800,11 @@ Instruções importantes:
                       value={formData.servings}
                       onChange={(e) => setFormData((prev) => ({ ...prev, servings: e.target.value }))}
                     />
+                    <p className="text-xs text-muted-foreground mt-1">Quantas pessoas</p>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="difficulty">Dificuldade</Label>
+                  <Label htmlFor="difficulty" className="text-sm font-medium text-muted-foreground">Dificuldade</Label>
                   <Select
                     value={formData.difficulty}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, difficulty: value }))}
@@ -522,27 +819,115 @@ Instruções importantes:
                       <SelectItem value="dificil">Difícil</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1">Nível de habilidade</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="temperature" className="text-sm font-medium text-muted-foreground">Temperatura</Label>
+                  <div className="relative">
+                    <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <Input
+                      id="temperature"
+                      placeholder="180°C"
+                      className="pl-10"
+                      value={formData.temperature}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, temperature: e.target.value }))}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Forno, fogão, etc.</p>
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="category">Categoria</Label>
-                <Select
-                  value={formData.category}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma categoria" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pratos-principais">Pratos Principais</SelectItem>
-                    <SelectItem value="sobremesas">Sobremesas</SelectItem>
-                    <SelectItem value="entradas">Entradas</SelectItem>
-                    <SelectItem value="bebidas">Bebidas</SelectItem>
-                    <SelectItem value="vegetariano">Vegetariano</SelectItem>
-                    <SelectItem value="doces">Doces</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="space-y-3">
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
+                    disabled={isLoadingCategories}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={isLoadingCategories ? "Carregando..." : "Selecione uma categoria"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {isLoadingCategories ? (
+                        <div className="flex items-center justify-center p-4">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="ml-2">Carregando categorias...</span>
+                        </div>
+                      ) : (
+                        categories.map((category) => (
+                          <SelectItem key={category.slug} value={category.slug}>
+                            <div className="flex items-center justify-between w-full">
+                              <span className="capitalize">
+                                {category.name}
+                              </span>
+                              {!category.is_default && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    removeCategory(category)
+                                  }}
+                                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  
+                  {showNewCategoryInput ? (
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Digite o nome da nova categoria (ex: Bolo)"
+                        value={newCategory}
+                        onChange={(e) => setNewCategory(e.target.value)}
+                        onKeyPress={(e) => e.key === "Enter" && addCategory()}
+                        className="flex-1"
+                      />
+                      <Button 
+                        type="button" 
+                        onClick={addCategory}
+                        size="sm"
+                        className="gap-2"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Adicionar
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={() => {
+                          setShowNewCategoryInput(false)
+                          setNewCategory("")
+                        }}
+                        size="sm"
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowNewCategoryInput(true)}
+                      className="gap-2 w-full"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Criar Nova Categoria
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>

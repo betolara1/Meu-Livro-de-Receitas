@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use as usePromise } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -8,51 +8,17 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Plus, X, Upload, Clock, Users, ChefHat, Trash2, Save } from "lucide-react"
+import { ArrowLeft, Plus, X, Upload, Clock, Users, ChefHat, Trash2, Save, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { PageHeader } from "@/components/page-header"
+import type { Recipe } from "@/lib/database"
 
-// Mock data - in a real app this would come from a database
-const mockRecipe = {
-  id: "1",
-  title: "Pasta com Ervas Frescas",
-  description: "Uma receita clássica italiana com manjericão e tomates frescos",
-  image: "/placeholder.svg?height=400&width=600",
-  prepTime: "15",
-  cookTime: "15",
-  servings: "4",
-  difficulty: "Fácil",
-  category: "Pratos Principais",
-  tags: ["Italiano", "Vegetariano", "Rápido"],
-  ingredients: [
-    { item: "Massa penne", quantity: "400g" },
-    { item: "Tomates cereja", quantity: "300g" },
-    { item: "Manjericão fresco", quantity: "1 maço" },
-    { item: "Alho", quantity: "3 dentes" },
-    { item: "Azeite extra virgem", quantity: "4 colheres de sopa" },
-    { item: "Queijo parmesão ralado", quantity: "100g" },
-    { item: "Sal", quantity: "a gosto" },
-    { item: "Pimenta-do-reino", quantity: "a gosto" },
-  ],
-  instructions: [
-    "Coloque uma panela grande com água salgada para ferver. Quando estiver fervendo, adicione a massa e cozinhe conforme as instruções da embalagem até ficar al dente.",
-    "Enquanto a massa cozinha, corte os tomates cereja ao meio e pique o alho finamente. Lave e seque as folhas de manjericão.",
-    "Em uma frigideira grande, aqueça o azeite em fogo médio. Adicione o alho e refogue por 1 minuto até ficar aromático.",
-    "Adicione os tomates cereja à frigideira e tempere com sal e pimenta. Cozinhe por 5-7 minutos até os tomates começarem a se desfazer.",
-    "Escorra a massa reservando 1 xícara da água do cozimento. Adicione a massa à frigideira com os tomates.",
-    "Misture bem, adicionando um pouco da água da massa se necessário para criar um molho cremoso.",
-    "Retire do fogo e adicione as folhas de manjericão rasgadas e metade do queijo parmesão. Misture delicadamente.",
-    "Sirva imediatamente com o restante do queijo parmesão polvilhado por cima.",
-  ],
-  tips: [
-    "Use sempre manjericão fresco para obter o melhor sabor",
-    "Não cozinhe demais os tomates para manter sua textura",
-    "Reserve sempre um pouco da água da massa para ajustar a consistência do molho",
-  ],
-}
-
-export default function EditRecipePage({ params }: { params: { id: string } }) {
+export default function EditRecipePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = usePromise(params)
   const router = useRouter()
+  const [recipe, setRecipe] = useState<Recipe | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -61,31 +27,109 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
     servings: "",
     difficulty: "",
     category: "",
+    temperature: "",
   })
   const [ingredients, setIngredients] = useState([{ item: "", quantity: "" }])
   const [instructions, setInstructions] = useState([""])
-  const [tips, setTips] = useState([""])
   const [tags, setTags] = useState<string[]>([])
   const [newTag, setNewTag] = useState("")
+  const [categories, setCategories] = useState<Array<{name: string, slug: string, is_default: boolean}>>([])
+  const [newCategory, setNewCategory] = useState("")
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false)
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  // Load recipe data on component mount
+  const loadCategories = async () => {
+    try {
+      setIsLoadingCategories(true)
+      const response = await fetch('/api/categories?userId=default_user')
+      
+      if (response.ok) {
+        const data = await response.json()
+        setCategories(data.categories)
+      } else {
+        throw new Error('Erro ao carregar categorias')
+      }
+    } catch (error) {
+      console.error('Erro ao carregar categorias:', error)
+      // Fallback para categorias padrão em caso de erro
+      setCategories([
+        { name: 'Pratos Principais', slug: 'pratos-principais', is_default: true },
+        { name: 'Sobremesas', slug: 'sobremesas', is_default: true },
+        { name: 'Entradas', slug: 'entradas', is_default: true },
+        { name: 'Bebidas', slug: 'bebidas', is_default: true },
+        { name: 'Vegetariano', slug: 'vegetariano', is_default: true },
+        { name: 'Doces', slug: 'doces', is_default: true }
+      ])
+    } finally {
+      setIsLoadingCategories(false)
+    }
+  }
+
   useEffect(() => {
-    // In a real app, this would fetch from an API
-    setFormData({
-      title: mockRecipe.title,
-      description: mockRecipe.description,
-      prepTime: mockRecipe.prepTime,
-      cookTime: mockRecipe.cookTime,
-      servings: mockRecipe.servings,
-      difficulty: mockRecipe.difficulty,
-      category: mockRecipe.category,
-    })
-    setIngredients(mockRecipe.ingredients)
-    setInstructions(mockRecipe.instructions)
-    setTips(mockRecipe.tips)
-    setTags(mockRecipe.tags)
-  }, [])
+    const loadData = async () => {
+      try {
+        // Carregar categorias primeiro
+        const categoriesResponse = await fetch('/api/categories?userId=temp-user-id')
+        let loadedCategories = []
+        
+        if (categoriesResponse.ok) {
+          const data = await categoriesResponse.json()
+          loadedCategories = data.categories
+          setCategories(loadedCategories)
+        } else {
+          // Fallback para categorias padrão
+          loadedCategories = [
+            { name: 'Pratos Principais', slug: 'pratos-principais', is_default: true },
+            { name: 'Sobremesas', slug: 'sobremesas', is_default: true },
+            { name: 'Entradas', slug: 'entradas', is_default: true },
+            { name: 'Bebidas', slug: 'bebidas', is_default: true },
+            { name: 'Vegetariano', slug: 'vegetariano', is_default: true },
+            { name: 'Doces', slug: 'doces', is_default: true }
+          ]
+          setCategories(loadedCategories)
+        }
+        setIsLoadingCategories(false)
+        
+        // Depois carregar a receita
+        const response = await fetch(`/api/recipes/${id}`)
+        if (!response.ok) {
+          throw new Error('Receita não encontrada')
+        }
+        
+        const recipeData: Recipe = await response.json()
+        setRecipe(recipeData)
+        
+        // Encontrar o slug da categoria baseado no nome salvo no banco
+        const savedCategory = recipeData.category
+        const categoryMatch = loadedCategories.find((cat: any) => 
+          cat.name === savedCategory || cat.slug === savedCategory
+        )
+        const categorySlug = categoryMatch ? categoryMatch.slug : savedCategory
+
+        setFormData({
+          title: recipeData.title,
+          description: recipeData.description,
+          prepTime: recipeData.prepTime || "",
+          cookTime: recipeData.cookTime || "",
+          servings: recipeData.servings || "",
+          difficulty: recipeData.difficulty === "facil" ? "Fácil" : recipeData.difficulty === "medio" ? "Médio" : "Difícil",
+          category: categorySlug,
+          temperature: recipeData.temperature || "",
+        })
+        setIngredients(recipeData.ingredients || [{ item: "", quantity: "" }])
+        setInstructions(recipeData.instructions || [""])
+        setTags(recipeData.tags || [])
+      } catch (error) {
+        console.error("Erro ao carregar dados:", error)
+        router.push("/")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadData()
+  }, [id, router])
 
   const addIngredient = () => {
     setIngredients([...ingredients, { item: "", quantity: "" }])
@@ -113,18 +157,7 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
     setInstructions(updated)
   }
 
-  const addTip = () => {
-    setTips([...tips, ""])
-  }
 
-  const removeTip = (index: number) => {
-    setTips(tips.filter((_, i) => i !== index))
-  }
-
-  const updateTip = (index: number, value: string) => {
-    const updated = tips.map((tip, i) => (i === index ? value : tip))
-    setTips(updated)
-  }
 
   const addTag = () => {
     if (newTag.trim() && !tags.includes(newTag.trim())) {
@@ -137,48 +170,209 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
     setTags(tags.filter((tag) => tag !== tagToRemove))
   }
 
-  const handleSave = () => {
-    // In a real app, this would save to an API
-    console.log("Saving recipe:", { formData, ingredients, instructions, tips, tags })
-    router.push(`/receita/${params.id}`)
+  const addCategory = async () => {
+    if (newCategory.trim()) {
+      const categoryName = newCategory.trim()
+      const categorySlug = categoryName.toLowerCase().replace(/\s+/g, '-')
+      
+      // Verificar se já existe
+      if (categories.some(cat => cat.slug === categorySlug)) {
+        alert('Esta categoria já existe!')
+        return
+      }
+
+      try {
+        // Salvar no banco de dados
+        const response = await fetch('/api/categories', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: 'default_user',
+            name: categoryName,
+            slug: categorySlug
+          }),
+        })
+
+        if (response.ok) {
+          const newCategoryData = {
+            name: categoryName,
+            slug: categorySlug,
+            is_default: false
+          }
+          
+          setCategories(prev => [...prev, newCategoryData])
+          setFormData(prev => ({ ...prev, category: categorySlug }))
+          setNewCategory("")
+          setShowNewCategoryInput(false)
+        } else {
+          throw new Error('Erro ao salvar categoria')
+        }
+      } catch (error) {
+        console.error('Erro ao criar categoria:', error)
+        alert('Erro ao criar categoria. Tente novamente.')
+      }
+    }
   }
 
-  const handleDelete = () => {
-    // In a real app, this would delete from an API
-    console.log("Deleting recipe:", params.id)
-    router.push("/")
+  const removeCategory = async (categoryToRemove: {name: string, slug: string, is_default: boolean}) => {
+    if (categoryToRemove.is_default) {
+      alert('Não é possível remover categorias padrão!')
+      return
+    }
+
+    if (formData.category === categoryToRemove.slug) {
+      setFormData(prev => ({ ...prev, category: "" }))
+    }
+
+    try {
+      // Remover do banco de dados
+              const response = await fetch(`/api/categories?userId=default_user&slug=${categoryToRemove.slug}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        setCategories(prev => prev.filter(cat => cat.slug !== categoryToRemove.slug))
+      } else {
+        throw new Error('Erro ao remover categoria')
+      }
+    } catch (error) {
+      console.error('Erro ao remover categoria:', error)
+      alert('Erro ao remover categoria. Tente novamente.')
+    }
+  }
+
+  const handleSave = async () => {
+    try {
+      const difficultyMap = { "Fácil": "facil", "Médio": "medio", "Difícil": "dificil" }
+      
+      // Encontrar o nome da categoria baseado no slug selecionado
+      const selectedCategory = categories.find(cat => cat.slug === formData.category)
+      const categoryName = selectedCategory ? selectedCategory.name : formData.category
+      
+      const updatedRecipe = {
+        title: formData.title,
+        description: formData.description,
+        prepTime: formData.prepTime,
+        cookTime: formData.cookTime,
+        servings: formData.servings,
+        difficulty: difficultyMap[formData.difficulty as keyof typeof difficultyMap] || formData.difficulty,
+        category: categoryName,
+        temperature: formData.temperature,
+        ingredients: ingredients.filter(ing => ing.item.trim() && ing.quantity.trim()),
+        instructions: instructions.filter(inst => inst.trim()),
+        tags: tags,
+        imageUrl: recipe?.imageUrl || null,
+      }
+
+      const response = await fetch(`/api/recipes/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedRecipe),
+      })
+
+      if (response.ok) {
+        alert("Receita atualizada com sucesso!")
+        router.push(`/receita/${id}`)
+      } else {
+        throw new Error('Erro ao atualizar receita')
+      }
+    } catch (error) {
+      console.error("Erro ao salvar receita:", error)
+      alert("Erro ao salvar receita. Tente novamente.")
+    }
+  }
+
+  const handleDelete = async () => {
+    try {
+      const response = await fetch(`/api/recipes/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        alert("Receita deletada com sucesso!")
+        router.push("/")
+      } else {
+        throw new Error('Erro ao deletar receita')
+      }
+    } catch (error) {
+      console.error("Erro ao deletar receita:", error)
+      alert("Erro ao deletar receita. Tente novamente.")
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <PageHeader showActions={false}>
+          <Link href={`/receita/${id}`}>
+            <Button variant="ghost" size="sm" className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Cancelar
+            </Button>
+          </Link>
+        </PageHeader>
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <div className="animate-pulse">
+            <div className="bg-muted rounded h-8 mb-4 w-1/2 mx-auto"></div>
+            <div className="bg-muted rounded h-4 mb-8 w-1/3 mx-auto"></div>
+            <div className="space-y-6">
+              <div className="bg-muted rounded-lg h-64"></div>
+              <div className="bg-muted rounded-lg h-48"></div>
+              <div className="bg-muted rounded-lg h-32"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!recipe) {
+    return (
+      <div className="min-h-screen bg-background">
+        <PageHeader showActions={false}>
+          <Link href="/">
+            <Button variant="ghost" size="sm" className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Voltar
+            </Button>
+          </Link>
+        </PageHeader>
+        <div className="container mx-auto px-4 py-8 max-w-4xl text-center">
+          <ChefHat className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+          <h1 className="text-2xl font-serif font-bold mb-2">Receita não encontrada</h1>
+          <p className="text-muted-foreground">A receita que você está tentando editar não existe.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card book-page sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href={`/receita/${params.id}`}>
-              <Button variant="ghost" size="sm" className="gap-2">
-                <ArrowLeft className="h-4 w-4" />
-                Cancelar
-              </Button>
-            </Link>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowDeleteConfirm(true)}
-                className="gap-2 text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
-                Deletar
-              </Button>
-              <Button onClick={handleSave} className="gap-2">
-                <Save className="h-4 w-4" />
-                Salvar
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <PageHeader showActions={false}>
+        <Link href={`/receita/${id}`}>
+          <Button variant="ghost" size="sm" className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Cancelar
+          </Button>
+        </Link>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowDeleteConfirm(true)}
+          className="gap-2 text-destructive hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4" />
+          Deletar
+        </Button>
+        <Button onClick={handleSave} className="gap-2">
+          <Save className="h-4 w-4" />
+          Salvar
+        </Button>
+      </PageHeader>
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
@@ -224,6 +418,7 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="text-lg"
+                  placeholder="Ex: Pasta com Ervas Frescas"
                 />
               </div>
 
@@ -234,23 +429,47 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}
+                  placeholder="Descreva sua receita em poucas palavras..."
                 />
               </div>
 
               <div className="space-y-2">
                 <Label>Foto da Receita</Label>
                 <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                  <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground mb-2">Clique para alterar a imagem ou arraste uma nova</p>
-                  <Button variant="outline" size="sm">
-                    Escolher Nova Imagem
-                  </Button>
+                  {recipe.imageUrl ? (
+                    <div className="space-y-4">
+                      <div className="relative mx-auto max-w-md">
+                        <img
+                          src={recipe.imageUrl}
+                          alt="Foto da receita"
+                          className="w-full h-48 object-cover rounded-lg border"
+                        />
+                      </div>
+                      <div className="flex gap-2 justify-center">
+                        <Button variant="outline" size="sm">
+                          <Upload className="h-4 w-4 mr-2" />
+                          Alterar Imagem
+                        </Button>
+                        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                          Remover Foto
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground mb-2">Clique para alterar a imagem ou arraste uma nova</p>
+                      <Button variant="outline" size="sm">
+                        Escolher Nova Imagem
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="prep-time">Tempo de Preparo (min)</Label>
+                  <Label htmlFor="prep-time" className="text-sm font-medium text-muted-foreground">Tempo de Preparo</Label>
                   <div className="relative">
                     <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -258,11 +477,13 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
                       value={formData.prepTime}
                       onChange={(e) => setFormData({ ...formData, prepTime: e.target.value })}
                       className="pl-10"
+                      placeholder="15 min"
                     />
+                    <p className="text-xs text-muted-foreground mt-1">Em minutos</p>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="cook-time">Tempo de Cozimento (min)</Label>
+                  <Label htmlFor="cook-time" className="text-sm font-medium text-muted-foreground">Tempo de Cozimento</Label>
                   <div className="relative">
                     <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -270,11 +491,13 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
                       value={formData.cookTime}
                       onChange={(e) => setFormData({ ...formData, cookTime: e.target.value })}
                       className="pl-10"
+                      placeholder="30 min"
                     />
+                    <p className="text-xs text-muted-foreground mt-1">Em minutos</p>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="servings">Porções</Label>
+                  <Label htmlFor="servings" className="text-sm font-medium text-muted-foreground">Porções</Label>
                   <div className="relative">
                     <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -282,11 +505,13 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
                       value={formData.servings}
                       onChange={(e) => setFormData({ ...formData, servings: e.target.value })}
                       className="pl-10"
+                      placeholder="4"
                     />
+                    <p className="text-xs text-muted-foreground mt-1">Quantas pessoas</p>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="difficulty">Dificuldade</Label>
+                  <Label htmlFor="difficulty" className="text-sm font-medium text-muted-foreground">Dificuldade</Label>
                   <Select
                     value={formData.difficulty}
                     onValueChange={(value) => setFormData({ ...formData, difficulty: value })}
@@ -301,27 +526,115 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
                       <SelectItem value="Difícil">Difícil</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1">Nível de habilidade</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="temperature" className="text-sm font-medium text-muted-foreground">Temperatura</Label>
+                  <div className="relative">
+                    <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <Input
+                      id="temperature"
+                      placeholder="180°C"
+                      value={formData.temperature}
+                      onChange={(e) => setFormData({ ...formData, temperature: e.target.value })}
+                      className="pl-10"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Forno, fogão, etc.</p>
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="category">Categoria</Label>
-                <Select
-                  value={formData.category}
-                  onValueChange={(value) => setFormData({ ...formData, category: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Pratos Principais">Pratos Principais</SelectItem>
-                    <SelectItem value="Sobremesas">Sobremesas</SelectItem>
-                    <SelectItem value="Entradas">Entradas</SelectItem>
-                    <SelectItem value="Bebidas">Bebidas</SelectItem>
-                    <SelectItem value="Vegetariano">Vegetariano</SelectItem>
-                    <SelectItem value="Doces">Doces</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="space-y-3">
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    disabled={isLoadingCategories}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={isLoadingCategories ? "Carregando..." : "Selecione uma categoria"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {isLoadingCategories ? (
+                        <div className="flex items-center justify-center p-4">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="ml-2">Carregando categorias...</span>
+                        </div>
+                      ) : (
+                        categories.map((category) => (
+                          <SelectItem key={category.slug} value={category.slug}>
+                            <div className="flex items-center justify-between w-full">
+                              <span className="capitalize">
+                                {category.name}
+                              </span>
+                              {!category.is_default && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    removeCategory(category)
+                                  }}
+                                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  
+                  {showNewCategoryInput ? (
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Digite o nome da nova categoria (ex: Bolo)"
+                        value={newCategory}
+                        onChange={(e) => setNewCategory(e.target.value)}
+                        onKeyPress={(e) => e.key === "Enter" && addCategory()}
+                        className="flex-1"
+                      />
+                      <Button 
+                        type="button" 
+                        onClick={addCategory}
+                        size="sm"
+                        className="gap-2"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Adicionar
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={() => {
+                          setShowNewCategoryInput(false)
+                          setNewCategory("")
+                        }}
+                        size="sm"
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowNewCategoryInput(true)}
+                      className="gap-2 w-full"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Criar Nova Categoria
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -352,6 +665,7 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
                       <Input
                         value={ingredient.item}
                         onChange={(e) => updateIngredient(index, "item", e.target.value)}
+                        placeholder="Ex: Massa penne"
                       />
                     </div>
                     <div className="w-32 space-y-2">
@@ -359,6 +673,7 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
                       <Input
                         value={ingredient.quantity}
                         onChange={(e) => updateIngredient(index, "quantity", e.target.value)}
+                        placeholder="400g"
                       />
                     </div>
                     {ingredients.length > 1 && (
@@ -407,6 +722,7 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
                         value={instruction}
                         onChange={(e) => updateInstruction(index, e.target.value)}
                         rows={3}
+                        placeholder={`Descreva o passo ${index + 1}...`}
                       />
                     </div>
                     {instructions.length > 1 && (
@@ -426,41 +742,7 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
             </CardContent>
           </Card>
 
-          {/* Tips */}
-          <Card className="book-page">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="font-serif text-xl">Dicas do Chef</CardTitle>
-                <Button type="button" variant="outline" size="sm" onClick={addTip} className="gap-2 bg-transparent">
-                  <Plus className="h-4 w-4" />
-                  Adicionar Dica
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {tips.map((tip, index) => (
-                  <div key={index} className="flex gap-3 items-start">
-                    <div className="flex-shrink-0 w-2 h-2 bg-accent rounded-full mt-3"></div>
-                    <div className="flex-1 space-y-2">
-                      <Textarea value={tip} onChange={(e) => updateTip(index, e.target.value)} rows={2} />
-                    </div>
-                    {tips.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeTip(index)}
-                        className="text-destructive hover:text-destructive mt-2"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+
 
           {/* Tags */}
           <Card className="book-page">
@@ -471,7 +753,7 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
               <div className="space-y-4">
                 <div className="flex gap-2">
                   <Input
-                    placeholder="Adicionar tag"
+                    placeholder="Adicionar tag (ex: Italiano, Vegetariano)"
                     value={newTag}
                     onChange={(e) => setNewTag(e.target.value)}
                     onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
@@ -498,7 +780,7 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
 
           {/* Submit Buttons */}
           <div className="flex justify-center gap-4 pt-6">
-            <Link href={`/receita/${params.id}`}>
+            <Link href={`/receita/${id}`}>
               <Button type="button" variant="outline" size="lg">
                 Cancelar
               </Button>
