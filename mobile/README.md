@@ -69,6 +69,28 @@ cd ios && pod install && cd ..
 
 ## 📱 Executando o App
 
+### ⚠️ Resolvendo Erro de Timeout
+
+Se você encontrar o erro "There was a problem loading the project", execute:
+
+**Solução Rápida:**
+```bash
+# Windows
+fix-timeout.bat
+
+# Ou manualmente
+npx expo start --clear
+```
+
+**Solução Completa:**
+```bash
+# Windows
+rebuild-clean.bat
+
+# Ou manualmente
+npm run android
+```
+
 ### 1. Iniciar Metro Bundler
 ```bash
 npm start

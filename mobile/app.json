@@ -16,20 +16,50 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.recipeBook.mobile"
+      "bundleIdentifier": "com.recipeBook.mobile",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLName": "com.recipeBook.mobile",
+            "CFBundleURLSchemes": ["recipebook"]
+          }
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.recipeBook.mobile"
+      "package": "com.recipeBook.mobile",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "recipebook"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "",
       "bundler": "metro"
     },
-    "plugins": [],
-    "scheme": "recipebook"
+    "plugins": [
+      "@react-native-google-signin/google-signin",
+      "expo-apple-authentication"
+    ],
+    "scheme": "recipebook",
+    "updates": {
+      "enabled": false,
+      "checkAutomatically": "NEVER",
+      "fallbackToCacheTimeout": 0
+    },
+    "packagerOpts": {
+      "config": "metro.config.js"
+    }
   }
 }

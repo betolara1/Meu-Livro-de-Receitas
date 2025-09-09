@@ -1,12 +1,14 @@
 import React from 'react';
-import { TextInput, View, Text, StyleSheet, TextInputProps } from 'react-native';
+import { TextInput, View, Text, StyleSheet, TextInputProps, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, BorderRadius, Spacing } from '../../constants/theme';
 
 interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
-  leftIcon?: React.ReactNode;
-  rightIcon?: React.ReactNode;
+  leftIcon?: string | React.ReactNode;
+  rightIcon?: string | React.ReactNode;
+  onRightIconPress?: () => void;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -14,6 +16,7 @@ export const Input: React.FC<InputProps> = ({
   error,
   leftIcon,
   rightIcon,
+  onRightIconPress,
   style,
   ...props
 }) => {
@@ -34,7 +37,19 @@ export const Input: React.FC<InputProps> = ({
       {label && <Text style={styles.label}>{label}</Text>}
       
       <View style={inputContainerStyles}>
-        {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
+        {leftIcon && (
+          <View style={styles.leftIcon}>
+            {typeof leftIcon === 'string' ? (
+              <Ionicons 
+                name={leftIcon as keyof typeof Ionicons.glyphMap} 
+                size={20} 
+                color={Colors.textSecondary} 
+              />
+            ) : (
+              leftIcon
+            )}
+          </View>
+        )}
         
         <TextInput
           style={inputStyles}
@@ -42,7 +57,23 @@ export const Input: React.FC<InputProps> = ({
           {...props}
         />
         
-        {rightIcon && <View style={styles.rightIcon}>{rightIcon}</View>}
+        {rightIcon && (
+          <TouchableOpacity 
+            style={styles.rightIcon} 
+            onPress={onRightIconPress}
+            disabled={!onRightIconPress}
+          >
+            {typeof rightIcon === 'string' ? (
+              <Ionicons 
+                name={rightIcon as keyof typeof Ionicons.glyphMap} 
+                size={20} 
+                color={Colors.textSecondary} 
+              />
+            ) : (
+              rightIcon
+            )}
+          </TouchableOpacity>
+        )}
       </View>
       
       {error && <Text style={styles.error}>{error}</Text>}

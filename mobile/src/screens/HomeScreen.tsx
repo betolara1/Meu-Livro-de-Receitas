@@ -14,6 +14,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { RecipeCard } from '../components/RecipeCard';
+import { useAuth } from '../contexts/AuthContext';
 import { Colors, Typography, Spacing } from '../constants/theme';
 import { db } from '../services/database';
 import { Recipe, Category } from '../types/Recipe';
@@ -23,6 +24,7 @@ type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const HomeScreen = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  const { user, signOut } = useAuth();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [favoriteRecipes, setFavoriteRecipes] = useState<string[]>([]);
@@ -96,6 +98,30 @@ const HomeScreen = () => {
     navigation.navigate('CreateRecipe');
   };
 
+  const handleLogout = () => {
+    Alert.alert(
+      'Sair',
+      'Tem certeza que deseja sair da sua conta?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Sair',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut();
+            } catch (error) {
+              Alert.alert('Erro', 'Não foi possível sair da conta');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -111,9 +137,31 @@ const HomeScreen = () => {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       showsVerticalScrollIndicator={false}
     >
+      {/* User Header */}
+      <View style={styles.userHeader}>
+        <View style={styles.userInfo}>
+          <View style={styles.userAvatar}>
+            {user?.photo ? (
+              <Text style={styles.userAvatarText}>
+                {user.name.charAt(0).toUpperCase()}
+              </Text>
+            ) : (
+              <Ionicons name="person" size={24} color={Colors.primary} />
+            )}
+          </View>
+          <View style={styles.userDetails}>
+            <Text style={styles.userGreeting}>Olá, {user?.name || 'Usuário'}!</Text>
+            <Text style={styles.userEmail}>{user?.email}</Text>
+          </View>
+        </View>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={24} color={Colors.textSecondary} />
+        </TouchableOpacity>
+      </View>
+
       {/* Hero Section */}
       <View style={styles.heroSection}>
-        <Text style={styles.heroTitle}>Bem-vindo ao seu{'\n'}Livro de Receitas</Text>
+        <Text style={styles.heroTitle}>Seu Livro de Receitas</Text>
         <Text style={styles.heroSubtitle}>
           Descubra, crie e compartilhe receitas incríveis. Sua coleção pessoal de sabores únicos.
         </Text>
@@ -258,6 +306,59 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSizes.lg,
     color: Colors.textSecondary,
     marginTop: Spacing.md,
+  },
+
+  userHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.primary + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+  },
+
+  userAvatarText: {
+    fontSize: Typography.fontSizes.lg,
+    fontWeight: Typography.fontWeights.bold,
+    color: Colors.primary,
+  },
+
+  userDetails: {
+    flex: 1,
+  },
+
+  userGreeting: {
+    fontSize: Typography.fontSizes.base,
+    fontWeight: Typography.fontWeights.semibold,
+    color: Colors.text,
+  },
+
+  userEmail: {
+    fontSize: Typography.fontSizes.sm,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+
+  logoutButton: {
+    padding: Spacing.sm,
   },
   
   heroSection: {

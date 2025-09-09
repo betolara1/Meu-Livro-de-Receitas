@@ -4,6 +4,9 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/theme';
+import { useAuth } from '../contexts/AuthContext';
+import { AuthNavigator } from './AuthNavigator';
+import { AuthLoadingScreen } from '../components/AuthLoadingScreen';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
@@ -95,52 +98,62 @@ const TabNavigator = () => {
 };
 
 export const AppNavigator = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <AuthLoadingScreen />;
+  }
+
   return (
     <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: Colors.background,
-          },
-          headerTintColor: Colors.text,
-          headerTitleStyle: {
-            fontWeight: '600',
-          },
-          headerBackTitleVisible: false,
-        }}
-      >
-        <Stack.Screen 
-          name="MainTabs" 
-          component={TabNavigator} 
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen 
-          name="RecipeDetail" 
-          component={RecipeDetailScreen}
-          options={{ 
-            title: 'Receita',
-            headerShown: true,
+      {isAuthenticated ? (
+        <Stack.Navigator
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: Colors.background,
+            },
+            headerTintColor: Colors.text,
+            headerTitleStyle: {
+              fontWeight: '600',
+            },
+            headerBackTitleVisible: false,
           }}
-        />
-        <Stack.Screen 
-          name="CreateRecipe" 
-          component={CreateRecipeScreen}
-          options={{ 
-            title: 'Nova Receita',
-            headerShown: true,
-            presentation: 'modal',
-          }}
-        />
-        <Stack.Screen 
-          name="EditRecipe" 
-          component={EditRecipeScreen}
-          options={{ 
-            title: 'Editar Receita',
-            headerShown: true,
-            presentation: 'modal',
-          }}
-        />
-      </Stack.Navigator>
+        >
+          <Stack.Screen 
+            name="MainTabs" 
+            component={TabNavigator} 
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen 
+            name="RecipeDetail" 
+            component={RecipeDetailScreen}
+            options={{ 
+              title: 'Receita',
+              headerShown: true,
+            }}
+          />
+          <Stack.Screen 
+            name="CreateRecipe" 
+            component={CreateRecipeScreen}
+            options={{ 
+              title: 'Nova Receita',
+              headerShown: true,
+              presentation: 'modal',
+            }}
+          />
+          <Stack.Screen 
+            name="EditRecipe" 
+            component={EditRecipeScreen}
+            options={{ 
+              title: 'Editar Receita',
+              headerShown: true,
+              presentation: 'modal',
+            }}
+          />
+        </Stack.Navigator>
+      ) : (
+        <AuthNavigator />
+      )}
     </NavigationContainer>
   );
 };

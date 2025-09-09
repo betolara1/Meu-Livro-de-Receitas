@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, BorderRadius, Spacing } from '../../constants/theme';
 
 interface ButtonProps {
@@ -11,7 +12,7 @@ interface ButtonProps {
   loading?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
-  icon?: React.ReactNode;
+  leftIcon?: string | React.ReactNode;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -23,7 +24,7 @@ export const Button: React.FC<ButtonProps> = ({
   loading = false,
   style,
   textStyle,
-  icon,
+  leftIcon,
 }) => {
   const buttonStyles = [
     styles.button,
@@ -55,7 +56,17 @@ export const Button: React.FC<ButtonProps> = ({
         />
       ) : (
         <>
-          {icon}
+          {leftIcon && (
+            typeof leftIcon === 'string' ? (
+              <Ionicons 
+                name={leftIcon as keyof typeof Ionicons.glyphMap} 
+                size={20} 
+                color={variant === 'primary' ? Colors.background : Colors.primary} 
+              />
+            ) : (
+              leftIcon
+            )
+          )}
           <Text style={textStyles}>{title}</Text>
         </>
       )}
