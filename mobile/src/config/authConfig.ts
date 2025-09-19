@@ -5,11 +5,9 @@ export const AUTH_CONFIG = {
   
   // Google Sign-In Configuration
   GOOGLE: {
-    // Substitua pelo seu Web Client ID do Google Console
-    WEB_CLIENT_ID: 'YOUR_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com',
-    
-    // Para desenvolvimento, você pode usar um ID de teste
-    // Em produção, use o ID real do seu projeto
+    // Web Client ID do Google Console
+    WEB_CLIENT_ID: '1067379841978-cfh18te5vrbpea8csbpf5c9skj59j4mh.apps.googleusercontent.com',
+    ANDROID_CLIENT_ID: '1067379841978-tavu2jofco9g6qkq7l5848276khev6hv.apps.googleusercontent.com',
   },
   
   // Apple Sign-In Configuration

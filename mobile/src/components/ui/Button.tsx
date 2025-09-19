@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { Pressable, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, BorderRadius, Spacing } from '../../constants/theme';
 
@@ -43,11 +43,18 @@ export const Button: React.FC<ButtonProps> = ({
   ];
 
   return (
-    <TouchableOpacity
-      style={buttonStyles}
+    <Pressable
+      style={({ pressed }) => [
+        buttonStyles,
+        pressed && !disabled && !loading && styles.pressed
+      ]}
       onPress={onPress}
       disabled={disabled || loading}
-      activeOpacity={0.7}
+      android_ripple={{
+        color: variant === 'primary' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+        borderless: false,
+      }}
+      hitSlop={8}
     >
       {loading ? (
         <ActivityIndicator 
@@ -70,7 +77,7 @@ export const Button: React.FC<ButtonProps> = ({
           <Text style={textStyles}>{title}</Text>
         </>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
@@ -155,5 +162,11 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     color: Colors.textSecondary,
+  },
+  
+  // Pressed state
+  pressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
   },
 });

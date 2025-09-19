@@ -8,22 +8,25 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Colors } from '../constants/theme';
 import { AuthStackParamList } from '../navigation/AuthNavigator';
+import { useKeyboard } from '../hooks/useKeyboard';
 
-type RegisterScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'Register'>;
+type RegisterScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Register'>;
 
 export const RegisterScreen: React.FC = () => {
   const navigation = useNavigation<RegisterScreenNavigationProp>();
   const { signUp, signInWithGoogle, signInWithApple, isLoading } = useAuth();
+  const { keyboardVisible, dismissKeyboard } = useKeyboard();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -66,6 +69,8 @@ export const RegisterScreen: React.FC = () => {
   };
 
   const handleEmailRegister = async () => {
+    dismissKeyboard();
+    
     if (!validateForm()) return;
 
     try {
@@ -76,6 +81,8 @@ export const RegisterScreen: React.FC = () => {
   };
 
   const handleGoogleLogin = async () => {
+    dismissKeyboard();
+    
     try {
       await signInWithGoogle();
     } catch (error) {
@@ -84,6 +91,8 @@ export const RegisterScreen: React.FC = () => {
   };
 
   const handleAppleLogin = async () => {
+    dismissKeyboard();
+    
     try {
       await signInWithApple();
     } catch (error) {
@@ -96,10 +105,12 @@ export const RegisterScreen: React.FC = () => {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="always"
         >
           <View style={styles.header}>
             <View style={styles.logoContainer}>

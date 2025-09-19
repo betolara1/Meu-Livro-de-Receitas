@@ -15,7 +15,7 @@ import {
   serverTimestamp,
   Timestamp
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { db, auth } from '../config/firebase';
 import { Recipe, Category, Favorite, RecipeFilters } from '../types/Recipe';
 import { User } from '../types/Auth';
 
@@ -35,6 +35,34 @@ export class FirebaseService {
       FirebaseService.instance = new FirebaseService();
     }
     return FirebaseService.instance;
+  }
+
+  // Aguardar autenticação do Firebase
+  private async waitForAuth(maxWaitTime: number = 50000): Promise<boolean> {
+    const startTime = Date.now();
+    
+    while (Date.now() - startTime < maxWaitTime) {
+      if (auth.currentUser) {
+        console.log('[FirebaseService] Usuário autenticado encontrado');
+        return true;
+      }
+      
+      // Aguardar 100ms antes de verificar novamente
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    console.log('[FirebaseService] Timeout aguardando autenticação');
+    return false;
+  }
+
+  // Verificar se o usuário está autenticado
+  private async ensureAuthenticated(): Promise<void> {
+    if (!auth.currentUser) {
+      const isAuth = await this.waitForAuth();
+      if (!isAuth) {
+        throw new Error('Usuário não autenticado no Firebase. Faça login novamente.');
+      }
+    }
   }
 
   // ===== RECEITAS =====
@@ -71,6 +99,11 @@ export class FirebaseService {
   // Buscar todas as receitas do usuário
   async getUserRecipes(userId: string): Promise<Recipe[]> {
     try {
+      console.log('[Firebase] Buscando receitas do usuário:', userId);
+      
+      // Aguardar autenticação
+      await this.ensureAuthenticated();
+      
       // Buscar sem orderBy para evitar necessidade de índice
       const q = query(
         collection(db, COLLECTIONS.RECIPES),
@@ -124,6 +157,11 @@ export class FirebaseService {
   // Buscar receitas com filtros
   async searchRecipes(filters: RecipeFilters, userId: string): Promise<Recipe[]> {
     try {
+      console.log('[Firebase] Buscando receitas com filtros para usuário:', userId);
+      
+      // Aguardar autenticação
+      await this.ensureAuthenticated();
+      
       // Buscar apenas por userId primeiro, sem orderBy
       let q = query(
         collection(db, COLLECTIONS.RECIPES),
@@ -231,7 +269,8 @@ export class FirebaseService {
   // Toggle favorito
   async toggleFavorite(recipeId: string, userId: string): Promise<boolean> {
     try {
-      const favoriteRef = doc(db, COLLECTIONS.FAVORITES, `${userId}_${recipeId}`);
+      const favoriteId = `${userId}_${recipeId}`;
+      const favoriteRef = doc(db, COLLECTIONS.FAVORITES, favoriteId);
       const favoriteSnap = await getDoc(favoriteRef);
       
       if (favoriteSnap.exists()) {
@@ -240,8 +279,8 @@ export class FirebaseService {
         await this.decrementRecipeFavorites(recipeId);
         return false;
       } else {
-        // Adicionar favorito
-        await addDoc(collection(db, COLLECTIONS.FAVORITES), {
+        // Adicionar favorito usando setDoc com ID específico
+        await setDoc(favoriteRef, {
           recipeId,
           userId,
           createdAt: serverTimestamp(),
@@ -270,14 +309,33 @@ export class FirebaseService {
   // Buscar receitas favoritas
   async getFavoriteRecipes(userId: string): Promise<Recipe[]> {
     try {
+      console.log('[Firebase] Buscando receitas favoritas para usuário:', userId);
+      
+      // Aguardar autenticação
+      await this.ensureAuthenticated();
+      
+      // Buscar sem orderBy para evitar necessidade de índice
       const q = query(
         collection(db, COLLECTIONS.FAVORITES),
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc')
+        where('userId', '==', userId)
       );
       
       const querySnapshot = await getDocs(q);
-      const recipeIds = querySnapshot.docs.map(doc => doc.data().recipeId);
+      const favorites: any[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        favorites.push({
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+        });
+      });
+      
+      // Ordenar no cliente por data de criação
+      favorites.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      const recipeIds = favorites.map(fav => fav.recipeId);
       
       if (recipeIds.length === 0) return [];
       
@@ -289,6 +347,7 @@ export class FirebaseService {
         }
       }
       
+      console.log('[Firebase] Receitas favoritas encontradas:', recipes.length);
       return recipes;
     } catch (error) {
       console.error('[Firebase] Erro ao buscar receitas favoritas:', error);
@@ -351,6 +410,11 @@ export class FirebaseService {
   // Buscar categorias
   async getCategories(userId: string): Promise<Category[]> {
     try {
+      console.log('[Firebase] Buscando categorias do usuário:', userId);
+      
+      // Aguardar autenticação
+      await this.ensureAuthenticated();
+      
       const q = query(
         collection(db, COLLECTIONS.CATEGORIES),
         where('userId', '==', userId)
@@ -368,6 +432,7 @@ export class FirebaseService {
         } as Category);
       });
 
+      console.log('[Firebase] Categorias encontradas:', categories.length);
       return categories;
     } catch (error) {
       console.error('[Firebase] Erro ao buscar categorias:', error);
@@ -378,6 +443,11 @@ export class FirebaseService {
   // Criar categoria
   async createCategory(userId: string, name: string, slug: string): Promise<Category> {
     try {
+      console.log('[Firebase] Criando categoria:', name, 'para usuário:', userId);
+      
+      // Aguardar autenticação
+      await this.ensureAuthenticated();
+      
       const categoryRef = await addDoc(collection(db, COLLECTIONS.CATEGORIES), {
         name,
         slug,
@@ -395,7 +465,7 @@ export class FirebaseService {
         createdAt: new Date().toISOString(),
       };
 
-      console.log('[Firebase] Categoria criada:', newCategory.name);
+      console.log('[Firebase] Categoria criada com sucesso:', newCategory.name);
       return newCategory;
     } catch (error) {
       console.error('[Firebase] Erro ao criar categoria:', error);
@@ -403,25 +473,63 @@ export class FirebaseService {
     }
   }
 
-  // Deletar categoria
-  async deleteCategory(categoryId: string, userId: string): Promise<boolean> {
+  // Atualizar categoria
+  async updateCategory(categoryId: string, name: string, slug: string): Promise<void> {
     try {
+      console.log('[Firebase] Atualizando categoria:', categoryId, '->', name);
+      
+      // Aguardar autenticação
+      await this.ensureAuthenticated();
+      
       const categoryRef = doc(db, COLLECTIONS.CATEGORIES, categoryId);
       const categorySnap = await getDoc(categoryRef);
       
       if (categorySnap.exists()) {
         const data = categorySnap.data();
-        if (data.userId === userId && !data.isDefault) {
+        if (data.userId === auth.currentUser?.uid && !data.isDefault) {
+          await updateDoc(categoryRef, {
+            name,
+            slug,
+            updatedAt: serverTimestamp(),
+          });
+          console.log('[Firebase] Categoria atualizada:', categoryId);
+        } else {
+          throw new Error('Categoria não encontrada ou não pode ser editada');
+        }
+      } else {
+        throw new Error('Categoria não encontrada');
+      }
+    } catch (error) {
+      console.error('[Firebase] Erro ao atualizar categoria:', error);
+      throw error;
+    }
+  }
+
+  // Deletar categoria
+  async deleteCategory(categoryId: string): Promise<void> {
+    try {
+      console.log('[Firebase] Excluindo categoria:', categoryId);
+      
+      // Aguardar autenticação
+      await this.ensureAuthenticated();
+      
+      const categoryRef = doc(db, COLLECTIONS.CATEGORIES, categoryId);
+      const categorySnap = await getDoc(categoryRef);
+      
+      if (categorySnap.exists()) {
+        const data = categorySnap.data();
+        if (data.userId === auth.currentUser?.uid && !data.isDefault) {
           await deleteDoc(categoryRef);
           console.log('[Firebase] Categoria deletada:', categoryId);
-          return true;
+        } else {
+          throw new Error('Categoria não encontrada ou não pode ser excluída');
         }
+      } else {
+        throw new Error('Categoria não encontrada');
       }
-      
-      return false;
     } catch (error) {
       console.error('[Firebase] Erro ao deletar categoria:', error);
-      return false;
+      throw error;
     }
   }
 

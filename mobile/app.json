@@ -16,6 +16,7 @@
     ],
     "ios": {
       "supportsTablet": true,
+      "usesAppleSignIn": true,
       "bundleIdentifier": "com.recipeBook.mobile",
       "infoPlist": {
         "CFBundleURLTypes": [
@@ -23,7 +24,9 @@
             "CFBundleURLName": "com.recipeBook.mobile",
             "CFBundleURLSchemes": ["recipebook"]
           }
-        ]
+        ],
+        "NSCameraUsageDescription": "Este app precisa acessar a câmera para tirar fotos das receitas e analisá-las com IA.",
+        "NSPhotoLibraryUsageDescription": "Este app precisa acessar a galeria de fotos para selecionar imagens das receitas."
       }
     },
     "android": {
@@ -32,6 +35,11 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.recipeBook.mobile",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",

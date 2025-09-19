@@ -15,6 +15,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
+import { BottomNavigationBar } from '../components/BottomNavigationBar';
+import TopBar from '../components/ui/TopBar';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
 import { db } from '../services/database';
 import { Recipe } from '../types/Recipe';
@@ -144,106 +146,110 @@ const RecipeDetailScreen = () => {
     return prep + cook;
   };
 
-  useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <View style={styles.headerButtons}>
-          <TouchableOpacity onPress={handleToggleFavorite} style={styles.headerButton}>
-            <Ionicons
-              name={isFavorite ? 'heart' : 'heart-outline'}
-              size={24}
-              color={isFavorite ? Colors.error : Colors.text}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleEdit} style={styles.headerButton}>
-            <Ionicons name="create-outline" size={24} color={Colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleDelete} style={styles.headerButton}>
-            <Ionicons name="trash-outline" size={24} color={Colors.error} />
-          </TouchableOpacity>
-        </View>
-      ),
-    });
-  }, [isFavorite, recipe]);
+  const renderHeaderButtons = () => (
+    <View style={styles.headerButtons}>
+      <TouchableOpacity onPress={handleToggleFavorite} style={styles.headerButton}>
+        <Ionicons
+          name={isFavorite ? 'heart' : 'heart-outline'}
+          size={24}
+          color={isFavorite ? Colors.error : Colors.text}
+        />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={handleEdit} style={styles.headerButton}>
+        <Ionicons name="create-outline" size={24} color={Colors.text} />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={handleDelete} style={styles.headerButton}>
+        <Ionicons name="trash-outline" size={24} color={Colors.error} />
+      </TouchableOpacity>
+    </View>
+  );
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Ionicons name="restaurant" size={48} color={Colors.primary} />
-        <Text style={styles.loadingText}>Carregando receita...</Text>
+      <View style={styles.container}>
+        <TopBar title="Receita" rightComponent={renderHeaderButtons()} />
+        <View style={styles.loadingContainer}>
+          <Ionicons name="restaurant" size={48} color={Colors.primary} />
+          <Text style={styles.loadingText}>Carregando receita...</Text>
+        </View>
       </View>
     );
   }
 
   if (!recipe) {
     return (
-      <View style={styles.errorContainer}>
-        <Ionicons name="alert-circle-outline" size={48} color={Colors.error} />
-        <Text style={styles.errorText}>Receita não encontrada</Text>
+      <View style={styles.container}>
+        <TopBar title="Receita" rightComponent={renderHeaderButtons()} />
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={48} color={Colors.error} />
+          <Text style={styles.errorText}>Receita não encontrada</Text>
+        </View>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header Image */}
-      <View style={styles.imageContainer}>
-        {recipe.imageUrl && !imageError ? (
-          <Image
-            source={{ uri: recipe.imageUrl }}
-            style={styles.image}
-            onError={() => setImageError(true)}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={styles.placeholderImage}>
-            <Ionicons name="restaurant" size={80} color={Colors.textSecondary} />
-          </View>
-        )}
-        
-        {/* Temperature overlay */}
-        {recipe.temperature && (
-          <View style={styles.temperatureOverlay}>
-            <Badge variant="default" size="sm">
-              <Ionicons name="thermometer-outline" size={12} color={Colors.background} />
-              <Text style={styles.temperatureText}> {recipe.temperature}</Text>
-            </Badge>
-          </View>
-        )}
-      </View>
-
-      {/* Content */}
-      <View style={styles.content}>
-        {/* Title and Description */}
-        <View style={styles.titleSection}>
-          <Text style={styles.title}>{recipe.title}</Text>
-          <Text style={styles.description}>{recipe.description}</Text>
+    <View style={styles.container}>
+      <TopBar title={recipe.title} rightComponent={renderHeaderButtons()} />
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Header Image */}
+        <View style={styles.imageContainer}>
+          {recipe.imageUrl && !imageError ? (
+            <Image
+              source={{ uri: recipe.imageUrl }}
+              style={styles.image}
+              onError={() => setImageError(true)}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.placeholderImage}>
+              <Ionicons name="restaurant" size={80} color={Colors.textSecondary} />
+            </View>
+          )}
+          
+          {/* Temperature overlay */}
+          {recipe.temperature && (
+            <View style={styles.temperatureOverlay}>
+              <Badge variant="default" size="sm">
+                <Ionicons name="thermometer-outline" size={12} color={Colors.background} />
+                <Text style={styles.temperatureText}> {recipe.temperature}</Text>
+              </Badge>
+            </View>
+          )}
         </View>
 
-        {/* Tags */}
-        {recipe.tags.length > 0 && (
-          <View style={styles.tagsSection}>
-            <Text style={styles.sectionTitle}>Tags</Text>
-            <View style={styles.tagsContainer}>
-              {recipe.tags.map((tag, index) => (
-                <Badge key={index} variant="secondary" size="sm">
-                  {tag}
-                </Badge>
-              ))}
-            </View>
+        {/* Content */}
+        <View style={styles.content}>
+          {/* Title and Description */}
+          <View style={styles.titleSection}>
+            <Text style={styles.title}>{recipe.title}</Text>
+            <Text style={styles.description}>{recipe.description}</Text>
           </View>
-        )}
 
-        {/* Info Cards */}
-        <View style={styles.infoSection}>
-          <View style={styles.infoGrid}>
-            <Card style={styles.infoCard}>
-              <View style={styles.infoItem}>
-                <Ionicons name="time-outline" size={24} color={Colors.primary} />
-                <Text style={styles.infoLabel}>Preparo</Text>
-                <Text style={styles.infoValue}>{recipe.prepTime} min</Text>
+          {/* Tags */}
+          {recipe.tags.length > 0 && (
+            <View style={styles.tagsSection}>
+              <Text style={styles.sectionTitle}>Tags</Text>
+              <View style={styles.tagsContainer}>
+                {recipe.tags.map((tag, index) => (
+                  <Badge key={index} variant="secondary" size="sm">
+                    {tag}
+                  </Badge>
+                ))}
               </View>
-            </Card>
+            </View>
+          )}
+
+          {/* Info Cards */}
+          <View style={styles.infoSection}>
+            <View style={styles.infoGrid}>
+              <Card style={styles.infoCard}>
+                <View style={styles.infoItem}>
+                  <Ionicons name="time-outline" size={24} color={Colors.primary} />
+                  <Text style={styles.infoLabel}>Preparo</Text>
+                  <Text style={styles.infoValue}>{recipe.prepTime} min</Text>
+                </View>
+              </Card>
 
             <Card style={styles.infoCard}>
               <View style={styles.infoItem}>
@@ -347,7 +353,7 @@ const RecipeDetailScreen = () => {
             onPress={handleEdit}
             variant="outline"
             style={styles.actionButton}
-            icon={<Ionicons name="create-outline" size={20} color={Colors.primary} />}
+            leftIcon={<Ionicons name="create-outline" size={20} color={Colors.primary} />}
           />
           
           <Button
@@ -355,7 +361,7 @@ const RecipeDetailScreen = () => {
             onPress={handleToggleFavorite}
             variant={isFavorite ? 'secondary' : 'primary'}
             style={styles.actionButton}
-            icon={
+            leftIcon={
               <Ionicons 
                 name={isFavorite ? 'heart' : 'heart-outline'} 
                 size={20} 
@@ -365,7 +371,9 @@ const RecipeDetailScreen = () => {
           />
         </View>
       </View>
-    </ScrollView>
+      </ScrollView>
+      <BottomNavigationBar currentScreen="Home" />
+    </View>
   );
 };
 
@@ -375,11 +383,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   
+  scrollView: {
+    flex: 1,
+  },
+  
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
   },
   
   loadingText: {
@@ -392,7 +403,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
   },
   
   errorText: {
@@ -403,11 +413,13 @@ const styles = StyleSheet.create({
   
   headerButtons: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   
   headerButton: {
     padding: Spacing.xs,
+    borderRadius: 20,
   },
   
   imageContainer: {

@@ -94,7 +94,8 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0.0"
-        
+        //resValue "string", "google_client_id", "1067379841978-tb9s83kcm5rmv8a78q33h499kvvvq4ul.apps.googleusercontent.com"
+
         // Configurações de rede para evitar timeouts
         manifestPlaceholders = [
             'expo.modules.updates.ENABLED': 'false',
@@ -157,6 +158,12 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+    
+    // Google Services para Firebase e Google Sign-In
+    implementation 'com.google.android.gms:play-services-auth:20.7.0'
+    implementation platform('com.google.firebase:firebase-bom:34.2.0')
+    implementation 'com.google.firebase:firebase-analytics'
+    implementation 'com.google.firebase:firebase-auth'
 
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
     def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";
@@ -182,3 +189,6 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// Aplicar plugin do Google Services
+apply plugin: 'com.google.gms.google-services'

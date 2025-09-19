@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, View, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RecipeForm } from '../components/RecipeForm';
+import { BottomNavigationBar } from '../components/BottomNavigationBar';
+import TopBar from '../components/ui/TopBar';
 import { db } from '../services/database';
 import { Recipe } from '../types/Recipe';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { Colors } from '../constants/theme';
 
 type CreateRecipeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -51,12 +54,23 @@ const CreateRecipeScreen = () => {
   };
 
   return (
-    <RecipeForm
-      onSubmit={handleCreateRecipe}
-      submitButtonText="Criar Receita"
-      loading={loading}
-    />
+    <View style={styles.container}>
+      <TopBar title="Nova Receita" />
+      <RecipeForm
+        onSubmit={handleCreateRecipe}
+        submitButtonText="Criar Receita"
+        loading={loading}
+      />
+      <BottomNavigationBar currentScreen="Home" />
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+});
 
 export default CreateRecipeScreen;

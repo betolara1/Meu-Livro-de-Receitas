@@ -12,6 +12,7 @@ export interface Recipe {
   instructions: string[]
   tags: string[]
   imageUrl?: string
+  images?: string[]
   rating: number
   favorites: number
   createdAt: string

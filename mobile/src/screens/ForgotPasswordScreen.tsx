@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -17,16 +18,20 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Colors } from '../constants/theme';
 import { AuthStackParamList } from '../navigation/AuthNavigator';
+import { useKeyboard } from '../hooks/useKeyboard';
 
 type ForgotPasswordScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'ForgotPassword'>;
 
 export const ForgotPasswordScreen: React.FC = () => {
   const navigation = useNavigation<ForgotPasswordScreenNavigationProp>();
   const { resetPassword, isLoading } = useAuth();
+  const { keyboardVisible, dismissKeyboard } = useKeyboard();
   const [email, setEmail] = useState('');
   const [emailSent, setEmailSent] = useState(false);
 
   const handleResetPassword = async () => {
+    dismissKeyboard();
+    
     if (!email.trim()) {
       Alert.alert('Erro', 'Por favor, informe seu email');
       return;
@@ -75,6 +80,7 @@ export const ForgotPasswordScreen: React.FC = () => {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <View style={styles.content}>
           <TouchableOpacity

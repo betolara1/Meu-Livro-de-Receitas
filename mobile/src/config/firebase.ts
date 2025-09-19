@@ -1,23 +1,27 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configuração do Firebase
 // IMPORTANTE: Substitua estas configurações pelas suas próprias do Firebase Console
 const firebaseConfig = {
-  apiKey: "AIzaSyA6C0H7P5b7rJgL8C-Gz4ww9v6_V4dV9kE",
-  authDomain: "livro-receitas-5c297.firebaseapp.com",
-  projectId: "livro-receitas-5c297",
-  storageBucket: "livro-receitas-5c297.appspot.com",
-  messagingSenderId: "408849240977",
-  appId: "y1:408849240977:web:e79d128e277b03aabbc030" // Você precisa adicionar o App ID
+  apiKey: "AIzaSyBxEx7DznytOCXJiovsb-MhXZraUkWVf1I",
+  authDomain: "livro-receitas-mobile.firebaseapp.com",
+  projectId: "livro-receitas-mobile",
+  storageBucket: "livro-receitas-mobile.firebasestorage.app",
+  messagingSenderId: "1067379841978",
+  appId: "1:1067379841978:web:bcdc2bf2f8dde889d1db83",
+  measurementId: "G-W1JWB37M7E"
 };
 
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 
-// Inicializar Auth
-const auth = getAuth(app);
+// Inicializar Auth com persistência AsyncStorage
+const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(AsyncStorage)
+});
 
 // Inicializar Firestore
 const db = getFirestore(app);

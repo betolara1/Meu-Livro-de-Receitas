@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RecipeForm } from '../components/RecipeForm';
+import { BottomNavigationBar } from '../components/BottomNavigationBar';
+import TopBar from '../components/ui/TopBar';
 import { Colors, Typography, Spacing } from '../constants/theme';
 import { db } from '../services/database';
 import { Recipe } from '../types/Recipe';
@@ -77,38 +79,52 @@ const EditRecipeScreen = () => {
 
   if (initialLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Ionicons name="restaurant" size={48} color={Colors.primary} />
-        <Text style={styles.loadingText}>Carregando receita...</Text>
+      <View style={styles.container}>
+        <TopBar title="Editar Receita" />
+        <View style={styles.loadingContainer}>
+          <Ionicons name="restaurant" size={48} color={Colors.primary} />
+          <Text style={styles.loadingText}>Carregando receita...</Text>
+        </View>
       </View>
     );
   }
 
   if (!recipe) {
     return (
-      <View style={styles.errorContainer}>
-        <Ionicons name="alert-circle-outline" size={48} color={Colors.error} />
-        <Text style={styles.errorText}>Receita não encontrada</Text>
+      <View style={styles.container}>
+        <TopBar title="Editar Receita" />
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={48} color={Colors.error} />
+          <Text style={styles.errorText}>Receita não encontrada</Text>
+        </View>
       </View>
     );
   }
 
   return (
-    <RecipeForm
-      initialData={recipe}
-      onSubmit={handleUpdateRecipe}
-      submitButtonText="Atualizar Receita"
-      loading={loading}
-    />
+    <View style={styles.container}>
+      <TopBar title="Editar Receita" />
+      <RecipeForm
+        initialData={recipe}
+        onSubmit={handleUpdateRecipe}
+        submitButtonText="Atualizar Receita"
+        loading={loading}
+      />
+      <BottomNavigationBar currentScreen="Home" />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
   },
   
   loadingText: {
@@ -121,7 +137,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
   },
   
   errorText: {

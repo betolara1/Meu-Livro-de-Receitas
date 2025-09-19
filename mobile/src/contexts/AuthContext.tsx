@@ -19,22 +19,42 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const checkAuthState = async () => {
     try {
+      console.log('[AuthContext] Verificando estado de autenticação...');
       setIsLoading(true);
+      
+      // Aguarda o Firebase reidratar a sessão persistida, se disponível
+      try {
+        const { auth } = await import('../config/firebase');
+        const anyAuth = auth as unknown as { authStateReady?: () => Promise<void> };
+        if (typeof anyAuth.authStateReady === 'function') {
+          await anyAuth.authStateReady();
+        }
+      } catch (_) {}
+      
       const isAuthenticated = await authService.isAuthenticated();
+      
+      console.log('[AuthContext] Usuário autenticado:', isAuthenticated);
       
       if (isAuthenticated) {
         const currentUser = await authService.getCurrentUser();
-        setUser(currentUser);
+        console.log('[AuthContext] Usuário carregado:', currentUser?.email);
         
-        // Inicializar categorias padrão para o usuário logado
-        if (currentUser) {
+        // Verificar se o usuário está realmente autenticado no Firebase
+        if (currentUser && authService.isFirebaseAuthenticated()) {
+          setUser(currentUser);
           await initializeUserData(currentUser.id);
+        } else {
+          // Se não está autenticado no Firebase, limpar dados locais
+          console.log('[AuthContext] Usuário não autenticado no Firebase, limpando dados locais');
+          setUser(null);
+          await authService.signOut();
         }
       } else {
+        console.log('[AuthContext] Nenhum usuário autenticado');
         setUser(null);
       }
     } catch (error) {
-      console.error('Erro ao verificar estado de autenticação:', error);
+      console.error('[AuthContext] Erro ao verificar estado de autenticação:', error);
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -47,14 +67,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const categories = await firebaseService.getCategories(userId);
       
       if (categories.length === 0) {
-        // Criar categorias padrão
+        // Criar categorias padrão (mesmas da página web)
         const defaultCategories = [
           { name: 'Pratos Principais', slug: 'pratos-principais' },
           { name: 'Sobremesas', slug: 'sobremesas' },
           { name: 'Entradas', slug: 'entradas' },
           { name: 'Bebidas', slug: 'bebidas' },
-          { name: 'Lanches', slug: 'lanches' },
-          { name: 'Saladas', slug: 'saladas' },
+          { name: 'Vegetariano', slug: 'vegetariano' },
+          { name: 'Doces', slug: 'doces' },
         ];
 
         for (const category of defaultCategories) {
@@ -154,6 +174,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    try {
+      await authService.changePassword(currentPassword, newPassword);
+    } catch (error) {
+      console.error('Erro na alteração de senha:', error);
+      throw error;
+    }
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
@@ -164,6 +193,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signInWithApple,
     signOut,
     resetPassword,
+    changePassword,
   };
 
   return (

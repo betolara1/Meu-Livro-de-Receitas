@@ -40,20 +40,24 @@ const SearchScreen = () => {
 
   const loadData = async () => {
     try {
+      console.log('[SearchScreen] Carregando dados...');
       await db.initialize();
       
       // Carregar categorias
+      console.log('[SearchScreen] Carregando categorias...');
       const allCategories = await db.getCategories();
+      console.log('[SearchScreen] Categorias carregadas:', allCategories.length);
       setCategories(allCategories);
 
       // Carregar favoritos
+      console.log('[SearchScreen] Carregando favoritos...');
       const favorites = await db.getFavorites();
       setFavoriteRecipes(favorites.map(fav => fav.recipeId));
 
       // Carregar todas as receitas inicialmente
       await searchRecipes();
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      console.error('[SearchScreen] Erro ao carregar dados:', error);
       Alert.alert('Erro', 'Não foi possível carregar os dados');
     }
   };
@@ -192,20 +196,26 @@ const SearchScreen = () => {
               </Badge>
             </TouchableOpacity>
 
-            {categories.map((category) => (
-              <TouchableOpacity
-                key={category.id}
-                onPress={() => setSelectedCategory(category.slug)}
-              >
-                <Badge
-                  variant={selectedCategory === category.slug ? 'default' : 'secondary'}
-                  size="md"
-                  style={styles.filterBadge}
+            {categories.length > 0 ? (
+              categories.map((category) => (
+                <TouchableOpacity
+                  key={category.id}
+                  onPress={() => setSelectedCategory(category.slug)}
                 >
-                  {category.name}
-                </Badge>
-              </TouchableOpacity>
-            ))}
+                  <Badge
+                    variant={selectedCategory === category.slug ? 'default' : 'secondary'}
+                    size="md"
+                    style={styles.filterBadge}
+                  >
+                    {category.name}
+                  </Badge>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <Badge variant="secondary" size="md" style={styles.filterBadge}>
+                Carregando...
+              </Badge>
+            )}
 
             {/* Difficulties */}
             {difficulties.map((difficulty) => (

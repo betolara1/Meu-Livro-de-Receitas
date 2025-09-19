@@ -24,7 +24,7 @@ type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const HomeScreen = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [favoriteRecipes, setFavoriteRecipes] = useState<string[]>([]);
@@ -95,38 +95,22 @@ const HomeScreen = () => {
   };
 
   const navigateToCreateRecipe = () => {
+    if (!user) {
+      Alert.alert('Erro', 'Você precisa estar logado para criar receitas');
+      return;
+    }
     navigation.navigate('CreateRecipe');
   };
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Sair',
-      'Tem certeza que deseja sair da sua conta?',
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Sair',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await signOut();
-            } catch (error) {
-              Alert.alert('Erro', 'Não foi possível sair da conta');
-            }
-          },
-        },
-      ]
-    );
-  };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <Ionicons name="restaurant" size={48} color={Colors.primary} />
         <Text style={styles.loadingText}>Carregando receitas...</Text>
+        <Text style={styles.loadingSubtext}>
+          Verificando autenticação...
+        </Text>
       </View>
     );
   }
@@ -137,28 +121,6 @@ const HomeScreen = () => {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       showsVerticalScrollIndicator={false}
     >
-      {/* User Header */}
-      <View style={styles.userHeader}>
-        <View style={styles.userInfo}>
-          <View style={styles.userAvatar}>
-            {user?.photo ? (
-              <Text style={styles.userAvatarText}>
-                {user.name.charAt(0).toUpperCase()}
-              </Text>
-            ) : (
-              <Ionicons name="person" size={24} color={Colors.primary} />
-            )}
-          </View>
-          <View style={styles.userDetails}>
-            <Text style={styles.userGreeting}>Olá, {user?.name || 'Usuário'}!</Text>
-            <Text style={styles.userEmail}>{user?.email}</Text>
-          </View>
-        </View>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={24} color={Colors.textSecondary} />
-        </TouchableOpacity>
-      </View>
-
       {/* Hero Section */}
       <View style={styles.heroSection}>
         <Text style={styles.heroTitle}>Seu Livro de Receitas</Text>
@@ -307,59 +269,14 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: Spacing.md,
   },
-
-  userHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-
-  userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.primary + '20',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Spacing.md,
-  },
-
-  userAvatarText: {
-    fontSize: Typography.fontSizes.lg,
-    fontWeight: Typography.fontWeights.bold,
-    color: Colors.primary,
-  },
-
-  userDetails: {
-    flex: 1,
-  },
-
-  userGreeting: {
-    fontSize: Typography.fontSizes.base,
-    fontWeight: Typography.fontWeights.semibold,
-    color: Colors.text,
-  },
-
-  userEmail: {
+  
+  loadingSubtext: {
     fontSize: Typography.fontSizes.sm,
     color: Colors.textSecondary,
-    marginTop: 2,
+    marginTop: Spacing.sm,
+    textAlign: 'center',
   },
 
-  logoutButton: {
-    padding: Spacing.sm,
-  },
   
   heroSection: {
     padding: Spacing.lg,

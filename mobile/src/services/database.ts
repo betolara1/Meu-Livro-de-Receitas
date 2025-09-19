@@ -38,8 +38,8 @@ class RecipeDatabase {
           { name: 'Sobremesas', slug: 'sobremesas' },
           { name: 'Entradas', slug: 'entradas' },
           { name: 'Bebidas', slug: 'bebidas' },
-          { name: 'Lanches', slug: 'lanches' },
-          { name: 'Saladas', slug: 'saladas' },
+          { name: 'Vegetariano', slug: 'vegetariano' },
+          { name: 'Doces', slug: 'doces' },
         ];
 
         for (const category of defaultCategories) {
@@ -159,11 +159,29 @@ class RecipeDatabase {
   // Categorias
   async getCategories(userId: string = 'default_user'): Promise<Category[]> {
     try {
+      console.log('[Database] Buscando categorias...');
       const currentUserId = await this.getCurrentUserId();
-      return await firebaseService.getCategories(currentUserId);
+      console.log('[Database] UserId atual:', currentUserId);
+      
+      const categories = await firebaseService.getCategories(currentUserId);
+      console.log('[Database] Categorias encontradas:', categories.length);
+      
+      return categories;
     } catch (error) {
       console.error('[Database] Erro ao buscar categorias:', error);
-      return [];
+      
+      // Fallback: retornar categorias padrão se houver erro
+      const fallbackCategories = [
+        { id: '1', name: 'Pratos Principais', slug: 'pratos-principais', isDefault: true, userId: '', createdAt: new Date().toISOString() },
+        { id: '2', name: 'Sobremesas', slug: 'sobremesas', isDefault: true, userId: '', createdAt: new Date().toISOString() },
+        { id: '3', name: 'Entradas', slug: 'entradas', isDefault: true, userId: '', createdAt: new Date().toISOString() },
+        { id: '4', name: 'Bebidas', slug: 'bebidas', isDefault: true, userId: '', createdAt: new Date().toISOString() },
+        { id: '5', name: 'Vegetariano', slug: 'vegetariano', isDefault: true, userId: '', createdAt: new Date().toISOString() },
+        { id: '6', name: 'Doces', slug: 'doces', isDefault: true, userId: '', createdAt: new Date().toISOString() },
+      ];
+      
+      console.log('[Database] Usando categorias de fallback:', fallbackCategories.length);
+      return fallbackCategories;
     }
   }
 
@@ -177,15 +195,26 @@ class RecipeDatabase {
     }
   }
 
-  async deleteCategory(userId: string, categoryId: string): Promise<boolean> {
+  async updateCategory(categoryId: string, name: string, slug: string): Promise<void> {
     try {
-      const currentUserId = await this.getCurrentUserId();
-      return await firebaseService.deleteCategory(categoryId, currentUserId);
+      console.log('[Database] Atualizando categoria:', categoryId, '->', name);
+      await firebaseService.updateCategory(categoryId, name, slug);
     } catch (error) {
-      console.error('[Database] Erro ao deletar categoria:', error);
-      return false;
+      console.error('[Database] Erro ao atualizar categoria:', error);
+      throw error;
     }
   }
+
+  async deleteCategory(categoryId: string): Promise<void> {
+    try {
+      console.log('[Database] Excluindo categoria:', categoryId);
+      await firebaseService.deleteCategory(categoryId);
+    } catch (error) {
+      console.error('[Database] Erro ao excluir categoria:', error);
+      throw error;
+    }
+  }
+
 
   // Estatísticas
   async getRecipeStats(userId: string = 'default_user') {
