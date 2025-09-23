@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface BottomNavigationBarProps {
   currentScreen?: string;
@@ -14,6 +15,7 @@ export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
 }) => {
   const navigation = useNavigation();
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   const navigateToScreen = (screenName: string) => {
     if (screenName === 'Home') {
@@ -72,10 +74,10 @@ export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
   };
 
   const tabs = [
-    { name: 'Home', label: 'Início' },
-    { name: 'Search', label: 'Buscar' },
-    { name: 'Favorites', label: 'Favoritos' },
-    { name: 'Profile', label: 'Perfil' },
+    { name: 'Home', label: t('navigation.home') },
+    { name: 'Search', label: t('navigation.search') },
+    { name: 'Favorites', label: t('navigation.favorites') },
+    { name: 'Profile', label: t('navigation.settings') },
   ];
 
   return (

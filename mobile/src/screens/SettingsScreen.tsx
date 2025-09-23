@@ -12,13 +12,16 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { Colors, Typography, Spacing } from '../constants/theme';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import ChangePasswordModal from '../components/ChangePasswordModal';
+import LanguageSelector from '../components/LanguageSelector';
 
 const SettingsScreen = () => {
   const { user, signOut, changePassword } = useAuth();
+  const { t } = useLanguage();
   const [isChangingPhoto, setIsChangingPhoto] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
@@ -30,7 +33,7 @@ const SettingsScreen = () => {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (permissionResult.granted === false) {
-        Alert.alert('Erro', 'Permissão para acessar a galeria foi negada');
+        Alert.alert(t('common.error'), t('settings.permissionDenied'));
         return;
       }
 
@@ -44,11 +47,11 @@ const SettingsScreen = () => {
       if (!result.canceled && result.assets[0]) {
         // Aqui você implementaria a lógica para salvar a nova foto
         // Por enquanto, apenas mostra uma mensagem
-        Alert.alert('Sucesso', 'Foto alterada com sucesso!');
+        Alert.alert(t('common.success'), t('settings.photoChangedSuccess'));
       }
     } catch (error) {
       console.error('Erro ao alterar foto:', error);
-      Alert.alert('Erro', 'Não foi possível alterar a foto');
+      Alert.alert(t('common.error'), t('settings.photoChangeError'));
     } finally {
       setIsChangingPhoto(false);
     }
@@ -58,9 +61,9 @@ const SettingsScreen = () => {
     // Verificar se o usuário foi criado com email/senha
     if (user?.provider !== 'email') {
       Alert.alert(
-        'Alterar Senha',
-        'A alteração de senha só está disponível para contas criadas com email e senha.',
-        [{ text: 'OK' }]
+        t('settings.changePassword'),
+        t('settings.passwordChangeOnlyEmail'),
+        [{ text: t('common.ok') }]
       );
       return;
     }
@@ -74,21 +77,21 @@ const SettingsScreen = () => {
 
   const handleLogout = () => {
     Alert.alert(
-      'Sair',
-      'Tem certeza que deseja sair da sua conta?',
+      t('auth.logout'),
+      t('settings.logoutConfirm'),
       [
         {
-          text: 'Cancelar',
+          text: t('common.cancel'),
           style: 'cancel',
         },
         {
-          text: 'Sair',
+          text: t('auth.logout'),
           style: 'destructive',
           onPress: async () => {
             try {
               await signOut();
             } catch (error) {
-              Alert.alert('Erro', 'Não foi possível sair da conta');
+              Alert.alert(t('common.error'), t('settings.logoutError'));
             }
           },
         },
@@ -98,9 +101,9 @@ const SettingsScreen = () => {
 
   const handleBiometricToggle = () => {
     Alert.alert(
-      'Autenticação Biométrica',
-      'Esta funcionalidade será implementada em breve.',
-      [{ text: 'OK' }]
+      t('settings.biometricAuth'),
+      t('settings.biometricComingSoon'),
+      [{ text: t('common.ok') }]
     );
   };
 
@@ -125,7 +128,7 @@ const SettingsScreen = () => {
         </TouchableOpacity>
         
         <View style={styles.userInfo}>
-          <Text style={styles.userName}>{user?.name || 'Usuário'}</Text>
+          <Text style={styles.userName}>{user?.name || t('settings.profile')}</Text>
           <Text style={styles.userEmail}>{user?.email}</Text>
         </View>
       </View>
@@ -134,14 +137,17 @@ const SettingsScreen = () => {
 
   const renderSettingsSection = () => (
     <Card style={styles.section}>
-      <Text style={styles.sectionTitle}>Configurações</Text>
+      <Text style={styles.sectionTitle}>{t('settings.title')}</Text>
+      
+      {/* Seletor de idioma */}
+      <LanguageSelector />
       
       {/* Mostrar opção de alterar senha apenas para usuários com email/senha */}
       {user?.provider === 'email' && (
         <TouchableOpacity style={styles.settingItem} onPress={handleChangePassword}>
           <View style={styles.settingLeft}>
             <Ionicons name="lock-closed" size={24} color={Colors.primary} />
-            <Text style={styles.settingText}>Alterar Senha</Text>
+            <Text style={styles.settingText}>{t('settings.changePassword')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
         </TouchableOpacity>
@@ -150,7 +156,7 @@ const SettingsScreen = () => {
       <TouchableOpacity style={styles.settingItem} onPress={handleBiometricToggle}>
         <View style={styles.settingLeft}>
           <Ionicons name="finger-print" size={24} color={Colors.primary} />
-          <Text style={styles.settingText}>Autenticação Biométrica</Text>
+          <Text style={styles.settingText}>{t('settings.biometricAuth')}</Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
       </TouchableOpacity>
@@ -159,13 +165,13 @@ const SettingsScreen = () => {
 
   const renderAccountSection = () => (
     <Card style={styles.section}>
-      <Text style={styles.sectionTitle}>Conta</Text>
+      <Text style={styles.sectionTitle}>{t('settings.account')}</Text>
       
       <View style={styles.settingItem}>
         <View style={styles.settingLeft}>
           <Ionicons name="mail" size={24} color={Colors.textSecondary} />
           <View>
-            <Text style={styles.settingText}>Email</Text>
+            <Text style={styles.settingText}>{t('auth.email')}</Text>
             <Text style={styles.settingSubtext}>{user?.email}</Text>
           </View>
         </View>
@@ -175,7 +181,7 @@ const SettingsScreen = () => {
         <View style={styles.settingLeft}>
           <Ionicons name="shield-checkmark" size={24} color={Colors.textSecondary} />
           <View>
-            <Text style={styles.settingText}>Provedor</Text>
+            <Text style={styles.settingText}>{t('settings.provider')}</Text>
             <Text style={styles.settingSubtext}>
               {user?.provider === 'google' ? 'Google' : 
                user?.provider === 'apple' ? 'Apple' : 'Email/Senha'}
@@ -190,7 +196,7 @@ const SettingsScreen = () => {
     <Card style={styles.section}>
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Ionicons name="log-out" size={24} color={Colors.error} />
-        <Text style={styles.logoutText}>Sair da Conta</Text>
+        <Text style={styles.logoutText}>{t('settings.logout')}</Text>
       </TouchableOpacity>
     </Card>
   );

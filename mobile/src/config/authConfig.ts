@@ -8,6 +8,8 @@ export const AUTH_CONFIG = {
     // Web Client ID do Google Console
     WEB_CLIENT_ID: '1067379841978-cfh18te5vrbpea8csbpf5c9skj59j4mh.apps.googleusercontent.com',
     ANDROID_CLIENT_ID: '1067379841978-tavu2jofco9g6qkq7l5848276khev6hv.apps.googleusercontent.com',
+    // iOS Client ID - substitua pelo ID gerado no Google Cloud Console
+    IOS_CLIENT_ID: 'SEU_IOS_CLIENT_ID_AQUI.apps.googleusercontent.com',
   },
   
   // Apple Sign-In Configuration

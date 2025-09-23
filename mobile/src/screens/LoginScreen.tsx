@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Colors } from '../constants/theme';
@@ -26,6 +27,7 @@ type LoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, '
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
   const { signIn, signInWithGoogle, signInWithApple, isLoading } = useAuth();
+  const { t } = useLanguage();
   const { keyboardVisible, dismissKeyboard } = useKeyboard();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,14 +37,14 @@ export const LoginScreen: React.FC = () => {
     dismissKeyboard();
     
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Erro', 'Por favor, preencha todos os campos');
+      Alert.alert(t('common.error'), 'Por favor, preencha todos os campos');
       return;
     }
 
     try {
       await signIn(email.trim(), password);
     } catch (error) {
-      Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao fazer login');
+      Alert.alert(t('common.error'), error instanceof Error ? error.message : 'Erro ao fazer login');
     }
   };
 
@@ -52,7 +54,7 @@ export const LoginScreen: React.FC = () => {
     try {
       await signInWithGoogle();
     } catch (error) {
-      Alert.alert('Erro', 'Erro ao fazer login com Google');
+      Alert.alert(t('common.error'), 'Erro ao fazer login com Google');
     }
   };
 
@@ -62,7 +64,7 @@ export const LoginScreen: React.FC = () => {
     try {
       await signInWithApple();
     } catch (error) {
-      Alert.alert('Erro', 'Erro ao fazer login com Apple');
+      Alert.alert(t('common.error'), 'Erro ao fazer login com Apple');
     }
   };
 
@@ -88,7 +90,7 @@ export const LoginScreen: React.FC = () => {
 
           <View style={styles.form}>
             <Input
-              label="Email"
+              label={t('auth.email')}
               value={email}
               onChangeText={setEmail}
               placeholder="seu@email.com"
@@ -99,7 +101,7 @@ export const LoginScreen: React.FC = () => {
             />
 
             <Input
-              label="Senha"
+              label={t('auth.password')}
               value={password}
               onChangeText={setPassword}
               placeholder="Sua senha"
@@ -113,11 +115,11 @@ export const LoginScreen: React.FC = () => {
               style={styles.forgotPassword}
               onPress={() => navigation.navigate('ForgotPassword')}
             >
-              <Text style={styles.forgotPasswordText}>Esqueceu sua senha?</Text>
+              <Text style={styles.forgotPasswordText}>{t('auth.forgotPassword')}</Text>
             </TouchableOpacity>
 
             <Button
-              title="Entrar"
+              title={t('auth.login')}
               onPress={handleEmailLogin}
               loading={isLoading}
               style={styles.loginButton}
@@ -130,7 +132,7 @@ export const LoginScreen: React.FC = () => {
             </View>
 
             <Button
-              title="Continuar com Google"
+              title={t('auth.loginWithGoogle')}
               onPress={handleGoogleLogin}
               loading={isLoading}
               variant="outline"
@@ -140,7 +142,7 @@ export const LoginScreen: React.FC = () => {
 
             {Platform.OS === 'ios' && (
               <Button
-                title="Continuar com Apple"
+                title={t('auth.loginWithApple')}
                 onPress={handleAppleLogin}
                 loading={isLoading}
                 variant="outline"
@@ -151,9 +153,9 @@ export const LoginScreen: React.FC = () => {
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Não tem uma conta? </Text>
+            <Text style={styles.footerText}>{t('auth.dontHaveAccount')} </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.footerLink}>Cadastre-se</Text>
+              <Text style={styles.footerLink}>{t('auth.register')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

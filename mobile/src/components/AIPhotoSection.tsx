@@ -12,6 +12,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing } from '../constants/theme';
+import { useLanguage } from '../contexts/LanguageContext';
 import { Card } from './ui/Card';
 import { GeminiService, GeminiRecipeData } from '../services/geminiService';
 
@@ -19,12 +20,14 @@ interface AIPhotoSectionProps {
   aiPhoto: string | null;
   onPhotoChange: (photo: string | null) => void;
   onRecipeDataExtracted: (data: GeminiRecipeData) => void;
+  t: (key: string, options?: any) => string;
 }
 
 export const AIPhotoSection: React.FC<AIPhotoSectionProps> = ({
   aiPhoto,
   onPhotoChange,
   onRecipeDataExtracted,
+  t,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -32,11 +35,7 @@ export const AIPhotoSection: React.FC<AIPhotoSectionProps> = ({
   const requestCameraPermissions = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(
-        'Permissão Necessária',
-        'Precisamos de permissão para acessar a câmera para tirar fotos da receita.',
-        [{ text: 'OK' }]
-      );
+      Alert.alert(t('common.permissionRequired'), t('common.cameraPermissionDenied'), [{ text: t('common.ok') }]);
       return false;
     }
     return true;
@@ -89,43 +88,27 @@ export const AIPhotoSection: React.FC<AIPhotoSectionProps> = ({
           const recipeData = await GeminiService.analyzeRecipeImage(compressedUri);
           onRecipeDataExtracted(recipeData);
           
-          Alert.alert(
-            'Análise Concluída!',
-            'A IA analisou sua foto e preencheu automaticamente os campos da receita. Verifique e ajuste conforme necessário.',
-            [{ text: 'OK' }]
-          );
+          Alert.alert(t('aiPhoto.analysisComplete'), t('aiPhoto.analysisSuccessMessage'), [{ text: t('common.ok') }]);
         } catch (error) {
           console.error('Erro ao analisar imagem com IA:', error);
-          Alert.alert(
-            'Erro na Análise',
-            'Não foi possível analisar a imagem com IA. Você pode preencher os dados manualmente.',
-            [{ text: 'OK' }]
-          );
+          Alert.alert(t('aiPhoto.analysisError'), t('aiPhoto.analysisErrorMessage'), [{ text: t('common.ok') }]);
         } finally {
           setIsAnalyzing(false);
         }
       }
     } catch (error) {
       console.error('Erro ao tirar foto:', error);
-      Alert.alert('Erro', 'Não foi possível tirar a foto. Tente novamente.');
+      Alert.alert(t('common.error'), t('aiPhoto.takePhotoError'));
     } finally {
       setIsLoading(false);
     }
   };
 
   const removePhoto = () => {
-    Alert.alert(
-      'Remover Foto',
-      'Tem certeza que deseja remover esta foto?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Remover',
-          style: 'destructive',
-          onPress: () => onPhotoChange(null),
-        },
-      ]
-    );
+    Alert.alert(t('aiPhoto.removePhoto'), t('aiPhoto.removePhotoConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.remove'), style: 'destructive', onPress: () => onPhotoChange(null) },
+    ]);
   };
 
   return (
@@ -133,10 +116,10 @@ export const AIPhotoSection: React.FC<AIPhotoSectionProps> = ({
       <View style={styles.header}>
         <View style={styles.titleContainer}>
           <Ionicons name="camera" size={20} color={Colors.primary} />
-          <Text style={styles.title}>Foto para IA</Text>
+          <Text style={styles.title}>{t('aiPhoto.title')}</Text>
         </View>
         <Text style={styles.subtitle}>
-          Tire uma foto da sua receita para a IA extrair as informações automaticamente
+          {t('aiPhoto.subtitle')}
         </Text>
       </View>
 
@@ -151,7 +134,7 @@ export const AIPhotoSection: React.FC<AIPhotoSectionProps> = ({
             >
               <Ionicons name="camera" size={16} color={Colors.primary} />
               <Text style={styles.actionButtonText}>
-                {isLoading ? 'Processando...' : isAnalyzing ? 'Analisando...' : 'Nova Foto'}
+                {isLoading ? t('common.processing') : isAnalyzing ? t('common.analyzing') : t('aiPhoto.newPhoto')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -160,7 +143,7 @@ export const AIPhotoSection: React.FC<AIPhotoSectionProps> = ({
               disabled={isLoading || isAnalyzing}
             >
               <Ionicons name="trash" size={16} color={Colors.error} />
-              <Text style={[styles.actionButtonText, styles.removeButtonText]}>Remover</Text>
+              <Text style={[styles.actionButtonText, styles.removeButtonText]}>{t('common.remove')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -176,11 +159,9 @@ export const AIPhotoSection: React.FC<AIPhotoSectionProps> = ({
             <Ionicons name="camera" size={48} color={Colors.primary} />
           )}
           <Text style={styles.placeholderText}>
-            {isLoading ? 'Processando...' : isAnalyzing ? 'Analisando com IA...' : 'Toque para tirar foto'}
+            {isLoading ? t('common.processing') : isAnalyzing ? t('aiPhoto.analyzingWithAI') : t('aiPhoto.tapToTakePhoto')}
           </Text>
-          <Text style={styles.placeholderSubtext}>
-            A IA irá extrair automaticamente as informações da receita
-          </Text>
+          <Text style={styles.placeholderSubtext}>{t('aiPhoto.aiExtractsInfo')}</Text>
         </TouchableOpacity>
       )}
     </Card>
@@ -244,7 +225,7 @@ const styles = StyleSheet.create({
   },
   
   removeButton: {
-    backgroundColor: Colors.errorLight,
+    backgroundColor: Colors.error + '20',
     borderColor: Colors.error,
   },
   

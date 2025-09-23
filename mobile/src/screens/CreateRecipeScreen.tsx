@@ -5,6 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RecipeForm } from '../components/RecipeForm';
 import { BottomNavigationBar } from '../components/BottomNavigationBar';
 import TopBar from '../components/ui/TopBar';
+import { useLanguage } from '../contexts/LanguageContext';
 import { db } from '../services/database';
 import { Recipe } from '../types/Recipe';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -15,6 +16,7 @@ type CreateRecipeScreenNavigationProp = NativeStackNavigationProp<RootStackParam
 const CreateRecipeScreen = () => {
   const navigation = useNavigation<CreateRecipeScreenNavigationProp>();
   const [loading, setLoading] = useState(false);
+  const { t } = useLanguage();
 
   const handleCreateRecipe = async (recipeData: Omit<Recipe, 'id' | 'createdAt' | 'updatedAt' | 'rating' | 'favorites'>) => {
     try {
@@ -23,17 +25,17 @@ const CreateRecipeScreen = () => {
       const newRecipe = await db.createRecipe(recipeData);
       
       Alert.alert(
-        'Sucesso!',
-        'Receita criada com sucesso!',
+        t('common.success'),
+        t('createRecipe.success'),
         [
           {
-            text: 'Ver Receita',
+          text: t('common.view'),
             onPress: () => {
               navigation.replace('RecipeDetail', { recipeId: newRecipe.id });
             }
           },
           {
-            text: 'Criar Outra',
+            text: t('common.createAnother'),
             style: 'cancel',
             onPress: () => {
               // Reset the form by navigating back and forth
@@ -47,7 +49,7 @@ const CreateRecipeScreen = () => {
       );
     } catch (error) {
       console.error('Erro ao criar receita:', error);
-      Alert.alert('Erro', 'Não foi possível criar a receita. Tente novamente.');
+      Alert.alert(t('common.error'), t('createRecipe.error'));
     } finally {
       setLoading(false);
     }
@@ -55,10 +57,10 @@ const CreateRecipeScreen = () => {
 
   return (
     <View style={styles.container}>
-      <TopBar title="Nova Receita" />
+      <TopBar title={t('createRecipe.title')} />
       <RecipeForm
         onSubmit={handleCreateRecipe}
-        submitButtonText="Criar Receita"
+        submitButtonText={t('createRecipe.save')}
         loading={loading}
       />
       <BottomNavigationBar currentScreen="Home" />

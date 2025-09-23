@@ -13,6 +13,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing } from '../constants/theme';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface ImagePickerProps {
   images: string[];
@@ -28,17 +29,20 @@ export const ImagePickerComponent: React.FC<ImagePickerProps> = ({
   images,
   onImagesChange,
   maxImages = 5,
-  label = 'Imagens da Receita',
+  label,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const { t } = useLanguage();
+  
+  const defaultLabel = label || t('createRecipe.imagePicker.label');
 
   const requestPermissions = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(
-        'Permissão Necessária',
-        'Precisamos de permissão para acessar suas fotos para adicionar imagens à receita.',
-        [{ text: 'OK' }]
+        t('createRecipe.imagePicker.permissionNeeded'),
+        t('createRecipe.imagePicker.galleryPermission'),
+        [{ text: t('common.ok') }]
       );
       return false;
     }
@@ -69,9 +73,9 @@ export const ImagePickerComponent: React.FC<ImagePickerProps> = ({
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(
-        'Permissão Necessária',
-        'Precisamos de permissão para acessar a câmera para tirar fotos da receita.',
-        [{ text: 'OK' }]
+        t('createRecipe.imagePicker.permissionNeeded'),
+        t('createRecipe.imagePicker.cameraPermission'),
+        [{ text: t('common.ok') }]
       );
       return false;
     }
@@ -81,20 +85,20 @@ export const ImagePickerComponent: React.FC<ImagePickerProps> = ({
   const showImagePickerOptions = () => {
     if (images.length >= maxImages) {
       Alert.alert(
-        'Limite de Imagens',
-        `Você pode adicionar no máximo ${maxImages} imagens.`,
-        [{ text: 'OK' }]
+        t('createRecipe.imagePicker.limitReached'),
+        t('createRecipe.imagePicker.limitReachedDesc').replace('{max}', maxImages.toString()),
+        [{ text: t('common.ok') }]
       );
       return;
     }
 
     Alert.alert(
-      'Selecionar Imagem',
-      'Como você gostaria de adicionar a imagem?',
+      t('createRecipe.imagePicker.selectImage'),
+      t('createRecipe.imagePicker.selectImageDesc'),
       [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Galeria', onPress: pickFromGallery },
-        { text: 'Câmera', onPress: takePhoto },
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('createRecipe.imagePicker.gallery'), onPress: pickFromGallery },
+        { text: t('createRecipe.imagePicker.camera'), onPress: takePhoto },
       ]
     );
   };
@@ -126,7 +130,7 @@ export const ImagePickerComponent: React.FC<ImagePickerProps> = ({
       }
     } catch (error) {
       console.error('Erro ao selecionar imagem:', error);
-      Alert.alert('Erro', 'Não foi possível selecionar a imagem. Tente novamente.');
+      Alert.alert(t('common.error'), t('createRecipe.imagePicker.errorSelect'));
     } finally {
       setIsLoading(false);
     }
@@ -157,7 +161,7 @@ export const ImagePickerComponent: React.FC<ImagePickerProps> = ({
       }
     } catch (error) {
       console.error('Erro ao tirar foto:', error);
-      Alert.alert('Erro', 'Não foi possível tirar a foto. Tente novamente.');
+      Alert.alert(t('common.error'), t('createRecipe.imagePicker.errorPhoto'));
     } finally {
       setIsLoading(false);
     }
@@ -166,12 +170,12 @@ export const ImagePickerComponent: React.FC<ImagePickerProps> = ({
 
   const removeImage = (index: number) => {
     Alert.alert(
-      'Remover Imagem',
-      'Tem certeza que deseja remover esta imagem?',
+      t('createRecipe.imagePicker.removeImage'),
+      t('createRecipe.imagePicker.removeImageDesc'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Remover',
+          text: t('createRecipe.imagePicker.remove'),
           style: 'destructive',
           onPress: () => {
             const newImages = images.filter((_, i) => i !== index);
@@ -196,9 +200,9 @@ export const ImagePickerComponent: React.FC<ImagePickerProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.label}>{defaultLabel}</Text>
       <Text style={styles.subtitle}>
-        {images.length}/{maxImages} imagens selecionadas
+        {images.length}/{maxImages} {t('createRecipe.imagePicker.selected')}
       </Text>
 
       <ScrollView
@@ -220,7 +224,7 @@ export const ImagePickerComponent: React.FC<ImagePickerProps> = ({
               color={Colors.primary}
             />
             <Text style={styles.addButtonText}>
-              {isLoading ? 'Processando...' : 'Adicionar'}
+              {isLoading ? t('createRecipe.imagePicker.processing') : t('createRecipe.imagePicker.add')}
             </Text>
           </TouchableOpacity>
         )}
@@ -230,7 +234,7 @@ export const ImagePickerComponent: React.FC<ImagePickerProps> = ({
         <View style={styles.emptyState}>
           <Ionicons name="image-outline" size={48} color={Colors.textSecondary} />
           <Text style={styles.emptyText}>
-            Toque no botão + para adicionar imagens da sua receita
+            {t('createRecipe.imagePicker.emptyText')}
           </Text>
         </View>
       )}

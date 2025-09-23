@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Colors } from '../constants/theme';
@@ -25,6 +26,7 @@ type ForgotPasswordScreenNavigationProp = StackNavigationProp<AuthStackParamList
 export const ForgotPasswordScreen: React.FC = () => {
   const navigation = useNavigation<ForgotPasswordScreenNavigationProp>();
   const { resetPassword, isLoading } = useAuth();
+  const { t } = useLanguage();
   const { keyboardVisible, dismissKeyboard } = useKeyboard();
   const [email, setEmail] = useState('');
   const [emailSent, setEmailSent] = useState(false);
@@ -33,12 +35,12 @@ export const ForgotPasswordScreen: React.FC = () => {
     dismissKeyboard();
     
     if (!email.trim()) {
-      Alert.alert('Erro', 'Por favor, informe seu email');
+      Alert.alert(t('common.error'), 'Por favor, informe seu email');
       return;
     }
 
     if (!email.includes('@')) {
-      Alert.alert('Erro', 'Por favor, informe um email válido');
+      Alert.alert(t('common.error'), 'Por favor, informe um email válido');
       return;
     }
 
@@ -46,7 +48,7 @@ export const ForgotPasswordScreen: React.FC = () => {
       await resetPassword(email.trim());
       setEmailSent(true);
     } catch (error) {
-      Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao enviar email de recuperação');
+      Alert.alert(t('common.error'), error instanceof Error ? error.message : 'Erro ao enviar email de recuperação');
     }
   };
 
@@ -57,16 +59,12 @@ export const ForgotPasswordScreen: React.FC = () => {
           <View style={styles.successIcon}>
             <Ionicons name="checkmark-circle" size={80} color={Colors.success} />
           </View>
-          <Text style={styles.successTitle}>Email enviado!</Text>
+          <Text style={styles.successTitle}>{t('forgotPassword.emailSent')}</Text>
           <Text style={styles.successMessage}>
-            Enviamos um link de recuperação para{'\n'}
-            <Text style={styles.emailText}>{email}</Text>
-          </Text>
-          <Text style={styles.instructions}>
-            Verifique sua caixa de entrada e siga as instruções para redefinir sua senha.
+            {t('forgotPassword.checkInbox')}
           </Text>
           <Button
-            title="Voltar ao Login"
+            title={t('forgotPassword.backToLogin')}
             onPress={() => navigation.navigate('Login')}
             style={styles.backButton}
           />
@@ -94,15 +92,15 @@ export const ForgotPasswordScreen: React.FC = () => {
             <View style={styles.iconContainer}>
               <Ionicons name="lock-closed" size={60} color={Colors.primary} />
             </View>
-            <Text style={styles.title}>Esqueceu sua senha?</Text>
+            <Text style={styles.title}>{t('forgotPassword.title')}</Text>
             <Text style={styles.subtitle}>
-              Não se preocupe! Digite seu email e enviaremos um link para redefinir sua senha.
+              {t('forgotPassword.subtitle')}
             </Text>
           </View>
 
           <View style={styles.form}>
             <Input
-              label="Email"
+              label={t('auth.email')}
               value={email}
               onChangeText={setEmail}
               placeholder="seu@email.com"
@@ -113,7 +111,7 @@ export const ForgotPasswordScreen: React.FC = () => {
             />
 
             <Button
-              title="Enviar Link de Recuperação"
+              title={t('forgotPassword.sendInstructions')}
               onPress={handleResetPassword}
               loading={isLoading}
               style={styles.resetButton}

@@ -15,6 +15,8 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { RecipeCard } from '../components/RecipeCard';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
+import { translateCategory } from '../utils/categoryI18n';
 import { Colors, Typography, Spacing } from '../constants/theme';
 import { db } from '../services/database';
 import { Recipe, Category } from '../types/Recipe';
@@ -25,6 +27,7 @@ type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 const HomeScreen = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [favoriteRecipes, setFavoriteRecipes] = useState<string[]>([]);
@@ -49,7 +52,7 @@ const HomeScreen = () => {
       setFavoriteRecipes(favorites.map(fav => fav.recipeId));
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
-      Alert.alert('Erro', 'Não foi possível carregar os dados');
+      Alert.alert(t('home.error'), t('home.errorLoadingData'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -82,7 +85,7 @@ const HomeScreen = () => {
       setRecipes(updatedRecipes.slice(0, 6));
     } catch (error) {
       console.error('Erro ao toggle favorito:', error);
-      Alert.alert('Erro', 'Não foi possível atualizar favorito');
+      Alert.alert(t('home.error'), t('home.errorToggleFavorite'));
     }
   };
 
@@ -96,7 +99,7 @@ const HomeScreen = () => {
 
   const navigateToCreateRecipe = () => {
     if (!user) {
-      Alert.alert('Erro', 'Você precisa estar logado para criar receitas');
+      Alert.alert(t('home.error'), t('home.loginRequired'));
       return;
     }
     navigation.navigate('CreateRecipe');
@@ -107,9 +110,9 @@ const HomeScreen = () => {
     return (
       <View style={styles.loadingContainer}>
         <Ionicons name="restaurant" size={48} color={Colors.primary} />
-        <Text style={styles.loadingText}>Carregando receitas...</Text>
+        <Text style={styles.loadingText}>{t('home.loading')}</Text>
         <Text style={styles.loadingSubtext}>
-          Verificando autenticação...
+          {t('home.checkingAuth')}
         </Text>
       </View>
     );
@@ -123,23 +126,23 @@ const HomeScreen = () => {
     >
       {/* Hero Section */}
       <View style={styles.heroSection}>
-        <Text style={styles.heroTitle}>Seu Livro de Receitas</Text>
+        <Text style={styles.heroTitle}>{t('home.title')}</Text>
         <Text style={styles.heroSubtitle}>
-          Descubra, crie e compartilhe receitas incríveis. Sua coleção pessoal de sabores únicos.
+          {t('home.subtitle')}
         </Text>
 
         {/* Search Button */}
         <TouchableOpacity style={styles.searchButton} onPress={navigateToSearch}>
           <Ionicons name="search" size={20} color={Colors.textSecondary} />
           <Text style={styles.searchPlaceholder}>
-            Buscar receitas, ingredientes ou categorias...
+            {t('home.searchPlaceholder')}
           </Text>
         </TouchableOpacity>
       </View>
 
       {/* Categories */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Categorias</Text>
+        <Text style={styles.sectionTitle}>{t('home.categories')}</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -161,7 +164,7 @@ const HomeScreen = () => {
                 size="md"
                 style={styles.categoryBadge}
               >
-                {category.name}
+                {translateCategory(category.slug || category.name, t)}
               </Badge>
             </TouchableOpacity>
           ))}
@@ -172,11 +175,11 @@ const HomeScreen = () => {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
-            {recipes.length > 0 ? 'Suas Receitas' : 'Receitas em Destaque'}
+            {recipes.length > 0 ? t('home.yourRecipes') : t('home.featuredRecipes')}
           </Text>
           {recipes.length > 6 && (
             <TouchableOpacity onPress={navigateToSearch}>
-              <Text style={styles.seeAllText}>Ver todas</Text>
+              <Text style={styles.seeAllText}>{t('home.seeAll')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -197,10 +200,10 @@ const HomeScreen = () => {
         ) : (
           <View style={styles.emptyState}>
             <Ionicons name="restaurant-outline" size={64} color={Colors.textSecondary} />
-            <Text style={styles.emptyTitle}>Nenhuma receita encontrada</Text>
-            <Text style={styles.emptySubtitle}>Comece criando sua primeira receita!</Text>
+            <Text style={styles.emptyTitle}>{t('home.noRecipesFound')}</Text>
+            <Text style={styles.emptySubtitle}>{t('home.startCreating')}</Text>
             <Button
-              title="Criar Primeira Receita"
+              title={t('home.createFirstRecipe')}
               onPress={navigateToCreateRecipe}
               style={styles.createButton}
             />
@@ -210,16 +213,16 @@ const HomeScreen = () => {
 
       {/* Quick Actions */}
       <View style={styles.quickActions}>
-        <Text style={styles.sectionTitle}>Ações Rápidas</Text>
-        
+        <Text style={styles.sectionTitle}>{t('home.quickActions')}</Text>
+
         <View style={styles.actionsGrid}>
           <TouchableOpacity style={styles.actionCard} onPress={navigateToCreateRecipe}>
             <View style={[styles.actionIcon, { backgroundColor: Colors.primary + '20' }]}>
               <Ionicons name="add" size={24} color={Colors.primary} />
             </View>
-            <Text style={styles.actionTitle}>Criar Receita</Text>
+            <Text style={styles.actionTitle}>{t('home.createRecipe')}</Text>
             <Text style={styles.actionSubtitle}>
-              Adicione suas receitas favoritas com fotos e instruções detalhadas
+              {t('home.createRecipeSubtitle')}
             </Text>
           </TouchableOpacity>
 
@@ -227,22 +230,22 @@ const HomeScreen = () => {
             <View style={[styles.actionIcon, { backgroundColor: Colors.accent + '20' }]}>
               <Ionicons name="search" size={24} color={Colors.accent} />
             </View>
-            <Text style={styles.actionTitle}>Descobrir</Text>
+            <Text style={styles.actionTitle}>{t('home.discover')}</Text>
             <Text style={styles.actionSubtitle}>
-              Explore receitas por ingredientes, tempo de preparo ou categoria
+              {t('home.discoverSubtitle')}
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.actionCard} 
+          <TouchableOpacity
+            style={styles.actionCard}
             onPress={() => navigation.navigate('MainTabs', { screen: 'Favorites' } as any)}
           >
             <View style={[styles.actionIcon, { backgroundColor: Colors.error + '20' }]}>
               <Ionicons name="heart" size={24} color={Colors.error} />
             </View>
-            <Text style={styles.actionTitle}>Favoritos</Text>
+            <Text style={styles.actionTitle}>{t('home.favorites')}</Text>
             <Text style={styles.actionSubtitle}>
-              Salve suas receitas preferidas para acesso rápido
+              {t('home.favoritesSubtitle')}
             </Text>
           </TouchableOpacity>
         </View>

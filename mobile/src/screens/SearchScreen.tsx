@@ -14,6 +14,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { RecipeCard } from '../components/RecipeCard';
+import { useLanguage } from '../contexts/LanguageContext';
+import { translateCategory } from '../utils/categoryI18n';
 import { Colors, Typography, Spacing } from '../constants/theme';
 import { db } from '../services/database';
 import { Recipe, Category, RecipeFilters } from '../types/Recipe';
@@ -23,6 +25,7 @@ type SearchScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const SearchScreen = () => {
   const navigation = useNavigation<SearchScreenNavigationProp>();
+  const { t } = useLanguage();
   const [searchText, setSearchText] = useState('');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -32,10 +35,10 @@ const SearchScreen = () => {
   const [loading, setLoading] = useState(false);
 
   const difficulties = [
-    { value: '', label: 'Todas' },
-    { value: 'facil', label: 'Fácil' },
-    { value: 'medio', label: 'Médio' },
-    { value: 'dificil', label: 'Difícil' },
+    { value: '', label: t('search.allCategories') },
+    { value: 'facil', label: t('difficulty.easy') },
+    { value: 'medio', label: t('difficulty.medium') },
+    { value: 'dificil', label: t('difficulty.hard') },
   ];
 
   const loadData = async () => {
@@ -157,7 +160,7 @@ const SearchScreen = () => {
       {/* Search Input */}
       <View style={styles.searchSection}>
         <Input
-          placeholder="Buscar receitas, ingredientes..."
+          placeholder={t('search.placeholder')}
           value={searchText}
           onChangeText={setSearchText}
           leftIcon={<Ionicons name="search" size={20} color={Colors.textSecondary} />}
@@ -180,7 +183,7 @@ const SearchScreen = () => {
               <TouchableOpacity onPress={clearFilters}>
                 <Badge variant="error" size="md" style={styles.filterBadge}>
                   <Ionicons name="close" size={14} color={Colors.background} />
-                  <Text style={styles.clearFiltersText}> Limpar</Text>
+                  <Text style={styles.clearFiltersText}> {t('common.clear')}</Text>
                 </Badge>
               </TouchableOpacity>
             )}
@@ -192,7 +195,7 @@ const SearchScreen = () => {
                 size="md"
                 style={styles.filterBadge}
               >
-                Todas Categorias
+                {t('search.allCategories')}
               </Badge>
             </TouchableOpacity>
 
@@ -207,13 +210,13 @@ const SearchScreen = () => {
                     size="md"
                     style={styles.filterBadge}
                   >
-                    {category.name}
+                    {translateCategory(category.slug || category.name, t)}
                   </Badge>
                 </TouchableOpacity>
               ))
             ) : (
               <Badge variant="secondary" size="md" style={styles.filterBadge}>
-                Carregando...
+                {t('common.loading')}
               </Badge>
             )}
 
@@ -240,7 +243,7 @@ const SearchScreen = () => {
       <View style={styles.resultsSection}>
         <View style={styles.resultsHeader}>
           <Text style={styles.resultsCount}>
-            {loading ? 'Buscando...' : `${recipes.length} receita${recipes.length !== 1 ? 's' : ''} encontrada${recipes.length !== 1 ? 's' : ''}`}
+            {loading ? t('common.searching') : `${recipes.length} ${recipes.length !== 1 ? t('search.resultsPlural') : t('search.results')}`}
           </Text>
         </View>
 
@@ -255,15 +258,15 @@ const SearchScreen = () => {
         ) : !loading ? (
           <View style={styles.emptyState}>
             <Ionicons name="search-outline" size={64} color={Colors.textSecondary} />
-            <Text style={styles.emptyTitle}>Nenhuma receita encontrada</Text>
+            <Text style={styles.emptyTitle}>{t('search.noResults')}</Text>
             <Text style={styles.emptySubtitle}>
               {hasActiveFilters
-                ? 'Tente ajustar os filtros ou buscar por outros termos'
+                ? t('search.tryDifferentSearch')
                 : 'Comece digitando para buscar receitas'}
             </Text>
             {hasActiveFilters && (
               <TouchableOpacity onPress={clearFilters} style={styles.clearButton}>
-                <Text style={styles.clearButtonText}>Limpar Filtros</Text>
+                <Text style={styles.clearButtonText}>{t('common.clear')} Filtros</Text>
               </TouchableOpacity>
             )}
           </View>

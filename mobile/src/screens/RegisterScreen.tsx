@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Colors } from '../constants/theme';
@@ -26,6 +27,7 @@ type RegisterScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList
 export const RegisterScreen: React.FC = () => {
   const navigation = useNavigation<RegisterScreenNavigationProp>();
   const { signUp, signInWithGoogle, signInWithApple, isLoading } = useAuth();
+  const { t } = useLanguage();
   const { keyboardVisible, dismissKeyboard } = useKeyboard();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -36,32 +38,32 @@ export const RegisterScreen: React.FC = () => {
 
   const validateForm = () => {
     if (!name.trim()) {
-      Alert.alert('Erro', 'Por favor, informe seu nome');
+      Alert.alert(t('common.error'), 'Por favor, informe seu nome');
       return false;
     }
 
     if (!email.trim()) {
-      Alert.alert('Erro', 'Por favor, informe seu email');
+      Alert.alert(t('common.error'), 'Por favor, informe seu email');
       return false;
     }
 
     if (!email.includes('@')) {
-      Alert.alert('Erro', 'Por favor, informe um email válido');
+      Alert.alert(t('common.error'), 'Por favor, informe um email válido');
       return false;
     }
 
     if (!password.trim()) {
-      Alert.alert('Erro', 'Por favor, informe uma senha');
+      Alert.alert(t('common.error'), 'Por favor, informe uma senha');
       return false;
     }
 
     if (password.length < 6) {
-      Alert.alert('Erro', 'A senha deve ter pelo menos 6 caracteres');
+      Alert.alert(t('common.error'), 'A senha deve ter pelo menos 6 caracteres');
       return false;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Erro', 'As senhas não coincidem');
+      Alert.alert(t('common.error'), 'As senhas não coincidem');
       return false;
     }
 
@@ -76,7 +78,7 @@ export const RegisterScreen: React.FC = () => {
     try {
       await signUp(email.trim(), password, name.trim());
     } catch (error) {
-      Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao criar conta');
+      Alert.alert(t('common.error'), error instanceof Error ? error.message : 'Erro ao criar conta');
     }
   };
 
@@ -86,7 +88,7 @@ export const RegisterScreen: React.FC = () => {
     try {
       await signInWithGoogle();
     } catch (error) {
-      Alert.alert('Erro', 'Erro ao fazer login com Google');
+      Alert.alert(t('common.error'), 'Erro ao fazer login com Google');
     }
   };
 
@@ -96,7 +98,7 @@ export const RegisterScreen: React.FC = () => {
     try {
       await signInWithApple();
     } catch (error) {
-      Alert.alert('Erro', 'Erro ao fazer login com Apple');
+      Alert.alert(t('common.error'), 'Erro ao fazer login com Apple');
     }
   };
 
@@ -116,13 +118,13 @@ export const RegisterScreen: React.FC = () => {
             <View style={styles.logoContainer}>
               <Ionicons name="restaurant" size={60} color={Colors.primary} />
             </View>
-            <Text style={styles.title}>Criar Conta</Text>
-            <Text style={styles.subtitle}>Preencha os dados para começar</Text>
+            <Text style={styles.title}>{t('register.title')}</Text>
+            <Text style={styles.subtitle}>{t('register.subtitle')}</Text>
           </View>
 
           <View style={styles.form}>
             <Input
-              label="Nome completo"
+              label={t('register.fullName')}
               value={name}
               onChangeText={setName}
               placeholder="Seu nome completo"
@@ -131,7 +133,7 @@ export const RegisterScreen: React.FC = () => {
             />
 
             <Input
-              label="Email"
+              label={t('auth.email')}
               value={email}
               onChangeText={setEmail}
               placeholder="seu@email.com"
@@ -142,7 +144,7 @@ export const RegisterScreen: React.FC = () => {
             />
 
             <Input
-              label="Senha"
+              label={t('auth.password')}
               value={password}
               onChangeText={setPassword}
               placeholder="Mínimo 6 caracteres"
@@ -153,7 +155,7 @@ export const RegisterScreen: React.FC = () => {
             />
 
             <Input
-              label="Confirmar senha"
+              label={t('auth.confirmPassword')}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholder="Confirme sua senha"
@@ -164,7 +166,7 @@ export const RegisterScreen: React.FC = () => {
             />
 
             <Button
-              title="Criar Conta"
+              title={t('register.createAccount')}
               onPress={handleEmailRegister}
               loading={isLoading}
               style={styles.registerButton}
@@ -177,7 +179,7 @@ export const RegisterScreen: React.FC = () => {
             </View>
 
             <Button
-              title="Continuar com Google"
+              title={t('register.loginWithGoogle')}
               onPress={handleGoogleLogin}
               loading={isLoading}
               variant="outline"
@@ -187,7 +189,7 @@ export const RegisterScreen: React.FC = () => {
 
             {Platform.OS === 'ios' && (
               <Button
-                title="Continuar com Apple"
+                title={t('register.loginWithApple')}
                 onPress={handleAppleLogin}
                 loading={isLoading}
                 variant="outline"
@@ -198,9 +200,9 @@ export const RegisterScreen: React.FC = () => {
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Já tem uma conta? </Text>
+            <Text style={styles.footerText}>{t('register.alreadyHaveAccount')} </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-              <Text style={styles.footerLink}>Faça login</Text>
+              <Text style={styles.footerLink}>{t('register.login')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

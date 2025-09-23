@@ -10,6 +10,7 @@ import { Colors, Typography, Spacing } from '../constants/theme';
 import { db } from '../services/database';
 import { Recipe } from '../types/Recipe';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { useLanguage } from '../contexts/LanguageContext';
 
 type EditRecipeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type EditRecipeScreenRouteProp = RouteProp<RootStackParamList, 'EditRecipe'>;
@@ -18,6 +19,7 @@ const EditRecipeScreen = () => {
   const navigation = useNavigation<EditRecipeScreenNavigationProp>();
   const route = useRoute<EditRecipeScreenRouteProp>();
   const { recipeId } = route.params;
+  const { t } = useLanguage();
   
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(false);
@@ -35,12 +37,12 @@ const EditRecipeScreen = () => {
       if (recipeData) {
         setRecipe(recipeData);
       } else {
-        Alert.alert('Erro', 'Receita não encontrada');
+        Alert.alert(t('common.error'), 'Receita não encontrada');
         navigation.goBack();
       }
     } catch (error) {
       console.error('Erro ao carregar receita:', error);
-      Alert.alert('Erro', 'Não foi possível carregar a receita');
+      Alert.alert(t('common.error'), 'Não foi possível carregar a receita');
       navigation.goBack();
     } finally {
       setInitialLoading(false);
@@ -55,11 +57,11 @@ const EditRecipeScreen = () => {
       
       if (updatedRecipe) {
         Alert.alert(
-          'Sucesso!',
-          'Receita atualizada com sucesso!',
+          t('common.success'),
+          t('recipes.recipeSaved'),
           [
             {
-              text: 'OK',
+              text: t('common.ok'),
               onPress: () => {
                 navigation.goBack();
               }
@@ -67,11 +69,11 @@ const EditRecipeScreen = () => {
           ]
         );
       } else {
-        Alert.alert('Erro', 'Não foi possível atualizar a receita');
+        Alert.alert(t('common.error'), 'Não foi possível atualizar a receita');
       }
     } catch (error) {
       console.error('Erro ao atualizar receita:', error);
-      Alert.alert('Erro', 'Não foi possível atualizar a receita. Tente novamente.');
+      Alert.alert(t('common.error'), 'Não foi possível atualizar a receita. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -80,10 +82,10 @@ const EditRecipeScreen = () => {
   if (initialLoading) {
     return (
       <View style={styles.container}>
-        <TopBar title="Editar Receita" />
+        <TopBar title={t('recipes.editRecipe')} />
         <View style={styles.loadingContainer}>
           <Ionicons name="restaurant" size={48} color={Colors.primary} />
-          <Text style={styles.loadingText}>Carregando receita...</Text>
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
         </View>
       </View>
     );
@@ -92,10 +94,10 @@ const EditRecipeScreen = () => {
   if (!recipe) {
     return (
       <View style={styles.container}>
-        <TopBar title="Editar Receita" />
+        <TopBar title={t('recipes.editRecipe')} />
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={48} color={Colors.error} />
-          <Text style={styles.errorText}>Receita não encontrada</Text>
+          <Text style={styles.errorText}>{t('home.noRecipesFound')}</Text>
         </View>
       </View>
     );
@@ -103,11 +105,11 @@ const EditRecipeScreen = () => {
 
   return (
     <View style={styles.container}>
-      <TopBar title="Editar Receita" />
+      <TopBar title={t('recipes.editRecipe')} />
       <RecipeForm
         initialData={recipe}
         onSubmit={handleUpdateRecipe}
-        submitButtonText="Atualizar Receita"
+        submitButtonText={t('recipes.saveRecipe')}
         loading={loading}
       />
       <BottomNavigationBar currentScreen="Home" />

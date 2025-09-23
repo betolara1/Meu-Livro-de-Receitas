@@ -4,8 +4,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { AuthProvider } from './src/contexts/AuthContext';
+import { LanguageProvider } from './src/contexts/LanguageContext';
 import { db } from './src/services/database';
 import './src/config/firebase'; // Inicializar Firebase
+import './src/config/i18n'; // Inicializar i18n
 
 // Prevent the splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -74,10 +76,12 @@ export default function App() {
   }
 
   return (
-    <AuthProvider>
-      <StatusBar style="dark" backgroundColor="#ffffff" />
-      <AppNavigator />
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <StatusBar style="dark" backgroundColor="#ffffff" />
+        <AppNavigator />
+      </AuthProvider>
+    </LanguageProvider>
   );
 }
 

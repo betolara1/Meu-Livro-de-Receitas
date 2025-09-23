@@ -5,6 +5,8 @@ import { Card } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../constants/theme';
 import { Recipe } from '../types/Recipe';
+import { useLanguage } from '../contexts/LanguageContext';
+import { translateCategory } from '../utils/categoryI18n';
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -20,17 +22,18 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
   isFavorite = false,
 }) => {
   const [imageError, setImageError] = useState(false);
+  const { t } = useLanguage();
 
   const getDifficultyText = (difficulty: string) => {
     switch (difficulty) {
       case 'facil':
-        return 'Fácil';
+        return t('difficulty.easy');
       case 'medio':
-        return 'Médio';
+        return t('difficulty.medium');
       case 'dificil':
-        return 'Difícil';
+        return t('difficulty.hard');
       default:
-        return 'Médio';
+        return t('difficulty.medium');
     }
   };
 

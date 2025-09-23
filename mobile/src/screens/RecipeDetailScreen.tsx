@@ -21,6 +21,8 @@ import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
 import { db } from '../services/database';
 import { Recipe } from '../types/Recipe';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { useLanguage } from '../contexts/LanguageContext';
+import { translateCategory } from '../utils/categoryI18n';
 
 type RecipeDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RecipeDetailScreenRouteProp = RouteProp<RootStackParamList, 'RecipeDetail'>;
@@ -31,6 +33,7 @@ const RecipeDetailScreen = () => {
   const navigation = useNavigation<RecipeDetailScreenNavigationProp>();
   const route = useRoute<RecipeDetailScreenRouteProp>();
   const { recipeId } = route.params;
+  const { t } = useLanguage();
   
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -53,12 +56,12 @@ const RecipeDetailScreen = () => {
         const favoriteStatus = await db.isFavorite(recipeId);
         setIsFavorite(favoriteStatus);
       } else {
-        Alert.alert('Erro', 'Receita não encontrada');
+        Alert.alert(t('common.error'), 'Receita não encontrada');
         navigation.goBack();
       }
     } catch (error) {
       console.error('Erro ao carregar receita:', error);
-      Alert.alert('Erro', 'Não foi possível carregar a receita');
+      Alert.alert(t('common.error'), 'Não foi possível carregar a receita');
       navigation.goBack();
     } finally {
       setLoading(false);
@@ -77,7 +80,7 @@ const RecipeDetailScreen = () => {
       }
     } catch (error) {
       console.error('Erro ao toggle favorito:', error);
-      Alert.alert('Erro', 'Não foi possível atualizar favorito');
+      Alert.alert(t('common.error'), t('home.errorToggleFavorite'));
     }
   };
 
@@ -116,13 +119,13 @@ const RecipeDetailScreen = () => {
   const getDifficultyText = (difficulty: string) => {
     switch (difficulty) {
       case 'facil':
-        return 'Fácil';
+        return t('difficulty.easy');
       case 'medio':
-        return 'Médio';
+        return t('difficulty.medium');
       case 'dificil':
-        return 'Difícil';
+        return t('difficulty.hard');
       default:
-        return 'Médio';
+        return t('difficulty.medium');
     }
   };
 
@@ -167,10 +170,10 @@ const RecipeDetailScreen = () => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <TopBar title="Receita" rightComponent={renderHeaderButtons()} />
+        <TopBar title={t('recipes.title')} rightComponent={renderHeaderButtons()} />
         <View style={styles.loadingContainer}>
           <Ionicons name="restaurant" size={48} color={Colors.primary} />
-          <Text style={styles.loadingText}>Carregando receita...</Text>
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
         </View>
       </View>
     );
@@ -179,10 +182,10 @@ const RecipeDetailScreen = () => {
   if (!recipe) {
     return (
       <View style={styles.container}>
-        <TopBar title="Receita" rightComponent={renderHeaderButtons()} />
+        <TopBar title={t('recipes.title')} rightComponent={renderHeaderButtons()} />
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={48} color={Colors.error} />
-          <Text style={styles.errorText}>Receita não encontrada</Text>
+          <Text style={styles.errorText}>{t('home.noRecipesFound')}</Text>
         </View>
       </View>
     );
@@ -246,7 +249,7 @@ const RecipeDetailScreen = () => {
               <Card style={styles.infoCard}>
                 <View style={styles.infoItem}>
                   <Ionicons name="time-outline" size={24} color={Colors.primary} />
-                  <Text style={styles.infoLabel}>Preparo</Text>
+                <Text style={styles.infoLabel}>{t('recipeDetail.prepTime')}</Text>
                   <Text style={styles.infoValue}>{recipe.prepTime} min</Text>
                 </View>
               </Card>
@@ -254,7 +257,7 @@ const RecipeDetailScreen = () => {
             <Card style={styles.infoCard}>
               <View style={styles.infoItem}>
                 <Ionicons name="flame-outline" size={24} color={Colors.accent} />
-                <Text style={styles.infoLabel}>Cozimento</Text>
+                <Text style={styles.infoLabel}>{t('recipeDetail.cookTime')}</Text>
                 <Text style={styles.infoValue}>{recipe.cookTime} min</Text>
               </View>
             </Card>
@@ -262,7 +265,7 @@ const RecipeDetailScreen = () => {
             <Card style={styles.infoCard}>
               <View style={styles.infoItem}>
                 <Ionicons name="people-outline" size={24} color={Colors.success} />
-                <Text style={styles.infoLabel}>Porções</Text>
+                <Text style={styles.infoLabel}>{t('recipeDetail.servings')}</Text>
                 <Text style={styles.infoValue}>{recipe.servings}</Text>
               </View>
             </Card>
@@ -275,7 +278,7 @@ const RecipeDetailScreen = () => {
                   color={recipe.difficulty === 'facil' ? Colors.success : 
                          recipe.difficulty === 'medio' ? Colors.warning : Colors.error} 
                 />
-                <Text style={styles.infoLabel}>Dificuldade</Text>
+                <Text style={styles.infoLabel}>{t('recipeDetail.difficulty')}</Text>
                 <Text style={styles.infoValue}>{getDifficultyText(recipe.difficulty)}</Text>
               </View>
             </Card>
@@ -284,9 +287,7 @@ const RecipeDetailScreen = () => {
 
         {/* Ingredients */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            <Ionicons name="list-outline" size={20} color={Colors.text} /> Ingredientes
-          </Text>
+          <Text style={styles.sectionTitle}><Ionicons name="list-outline" size={20} color={Colors.text} /> {t('recipeDetail.ingredients')}</Text>
           <Card>
             {recipe.ingredients.map((ingredient, index) => (
               <View key={index} style={styles.ingredientItem}>
@@ -302,9 +303,7 @@ const RecipeDetailScreen = () => {
 
         {/* Instructions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            <Ionicons name="clipboard-outline" size={20} color={Colors.text} /> Modo de Preparo
-          </Text>
+          <Text style={styles.sectionTitle}><Ionicons name="clipboard-outline" size={20} color={Colors.text} /> {t('recipeDetail.instructions')}</Text>
           <Card>
             {recipe.instructions.map((instruction, index) => (
               <View key={index} style={styles.instructionItem}>
@@ -323,7 +322,7 @@ const RecipeDetailScreen = () => {
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
                 <Ionicons name="star" size={20} color={Colors.warning} />
-                <Text style={styles.statLabel}>Avaliação</Text>
+                <Text style={styles.statLabel}>{t('common.rating') || 'Avaliação'}</Text>
                 <Text style={styles.statValue}>{recipe.rating.toFixed(1)}</Text>
               </View>
               
@@ -331,7 +330,7 @@ const RecipeDetailScreen = () => {
               
               <View style={styles.statItem}>
                 <Ionicons name="heart" size={20} color={Colors.error} />
-                <Text style={styles.statLabel}>Favoritos</Text>
+                <Text style={styles.statLabel}>{t('recipes.favorites')}</Text>
                 <Text style={styles.statValue}>{recipe.favorites}</Text>
               </View>
               
@@ -339,7 +338,7 @@ const RecipeDetailScreen = () => {
               
               <View style={styles.statItem}>
                 <Ionicons name="time" size={20} color={Colors.primary} />
-                <Text style={styles.statLabel}>Total</Text>
+                <Text style={styles.statLabel}>{t('time.totalTime')}</Text>
                 <Text style={styles.statValue}>{getTotalTime()} min</Text>
               </View>
             </View>
@@ -349,7 +348,7 @@ const RecipeDetailScreen = () => {
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
           <Button
-            title="Editar Receita"
+            title={t('recipes.editRecipe')}
             onPress={handleEdit}
             variant="outline"
             style={styles.actionButton}
@@ -357,7 +356,7 @@ const RecipeDetailScreen = () => {
           />
           
           <Button
-            title={isFavorite ? 'Remover dos Favoritos' : 'Adicionar aos Favoritos'}
+            title={isFavorite ? t('recipes.removeFromFavorites') : t('recipes.addToFavorites')}
             onPress={handleToggleFavorite}
             variant={isFavorite ? 'secondary' : 'primary'}
             style={styles.actionButton}

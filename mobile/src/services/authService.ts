@@ -12,8 +12,8 @@ import {
   EmailAuthProvider
 } from 'firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import * as AppleAuthentication from 'expo-apple-authentication';
 import { Platform } from 'react-native';
+import appleAuthService from './appleAuthService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_CONFIG } from '../config/authConfig';
 import { User } from '../types/Auth';
@@ -338,6 +338,7 @@ export class AuthService {
       // No construtor ou método de inicialização
       GoogleSignin.configure({
         webClientId: AUTH_CONFIG.GOOGLE.WEB_CLIENT_ID,
+        iosClientId: AUTH_CONFIG.GOOGLE.IOS_CLIENT_ID,
         offlineAccess: true,
         hostedDomain: '',
         forceCodeForRefreshToken: true,
@@ -391,25 +392,22 @@ export class AuthService {
         throw new Error('Apple Sign-In só está disponível no iOS');
       }
 
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
-
-      if (!credential.identityToken) {
-        throw new Error('Falha ao obter token do Apple');
+      // Verificar se o Apple Sign In está disponível
+      const isAvailable = await appleAuthService.isAvailable();
+      if (!isAvailable) {
+        throw new Error('Apple Sign In não está disponível neste dispositivo');
       }
 
-      // Para Apple Sign-In, precisaríamos implementar a autenticação com Firebase
-      // Por enquanto, vamos simular o comportamento
+      // Realizar login com Apple
+      const appleResult = await appleAuthService.signIn();
+
+      // Criar usuário com dados do Apple
       const user: User = {
-        id: credential.user,
-        email: credential.email || `${credential.user}@privaterelay.appleid.com`,
-        name: credential.fullName ? 
-          `${credential.fullName.givenName || ''} ${credential.fullName.familyName || ''}`.trim() :
-          credential.email?.split('@')[0] || 'Usuário Apple',
+        id: appleResult.user.id,
+        email: appleResult.user.email || `${appleResult.user.id}@privaterelay.appleid.com`,
+        name: appleResult.user.fullName ? 
+          `${appleResult.user.fullName.givenName || ''} ${appleResult.user.fullName.familyName || ''}`.trim() :
+          appleResult.user.email?.split('@')[0] || 'Usuário Apple',
         provider: 'apple',
         createdAt: new Date(),
       };
@@ -424,7 +422,17 @@ export class AuthService {
       return user;
     } catch (error: any) {
       console.error('Erro no login com Apple:', error);
-      throw new Error(AUTH_ERRORS.APPLE_SIGNIN_ERROR);
+      
+      // Mapear erros específicos do Apple Sign-In
+      if (error.message.includes('cancelado')) {
+        throw new Error('Login cancelado pelo usuário');
+      } else if (error.message.includes('não configurado')) {
+        throw new Error('Apple Sign In não configurado corretamente');
+      } else if (error.message.includes('não está disponível')) {
+        throw new Error('Apple Sign In não está disponível');
+      } else {
+        throw new Error(AUTH_ERRORS.APPLE_SIGNIN_ERROR);
+      }
     }
   }
 

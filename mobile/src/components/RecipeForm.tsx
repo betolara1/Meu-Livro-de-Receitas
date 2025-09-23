@@ -21,6 +21,8 @@ import { db } from '../services/database';
 import { Recipe, Category } from '../types/Recipe';
 import { useKeyboard } from '../hooks/useKeyboard';
 import { GeminiRecipeData } from '../services/geminiService';
+import { useLanguage } from '../contexts/LanguageContext';
+import { translateCategory } from '../utils/categoryI18n';
 
 interface RecipeFormProps {
   initialData?: Recipe;
@@ -70,6 +72,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
   loading = false,
 }) => {
   const { keyboardVisible, dismissKeyboard } = useKeyboard();
+  const { t } = useLanguage();
   const [formData, setFormData] = useState<FormData>(
     initialData ? {
       title: initialData.title,
@@ -96,9 +99,9 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const difficulties = [
-    { value: 'facil', label: 'Fácil' },
-    { value: 'medio', label: 'Médio' },
-    { value: 'dificil', label: 'Difícil' },
+    { value: 'facil', label: t('difficulty.easy') },
+    { value: 'medio', label: t('difficulty.medium') },
+    { value: 'dificil', label: t('difficulty.hard') },
   ];
 
   useEffect(() => {
@@ -141,18 +144,18 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
     const newErrors: { [key: string]: string } = {};
 
     if (!formData.title.trim()) {
-      newErrors.title = 'Título é obrigatório';
+      newErrors.title = t('createRecipe.recipeNameRequired');
     }
 
     if (!formData.category) {
-      newErrors.category = 'Categoria é obrigatória';
+      newErrors.category = t('createRecipe.categoryRequired');
     }
 
     const validIngredients = formData.ingredients.filter(
       ing => ing.item.trim() && ing.quantity.trim()
     );
     if (validIngredients.length === 0) {
-      newErrors.ingredients = 'Pelo menos um ingrediente é obrigatório';
+      newErrors.ingredients = t('createRecipe.ingredientsRequired');
     }
 
     setErrors(newErrors);
@@ -163,7 +166,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
     dismissKeyboard();
     
     if (!validateForm()) {
-      Alert.alert('Erro', 'Por favor, corrija os erros no formulário');
+      Alert.alert(t('common.error'), t('common.formError'));
       return;
     }
 
@@ -275,7 +278,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
 
   const createNewCategory = async () => {
     if (!newCategoryName.trim()) {
-      Alert.alert('Erro', 'Digite o nome da categoria');
+      Alert.alert(t('common.error'), t('createRecipe.categoryNameRequired'));
       return;
     }
 
@@ -299,34 +302,34 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
       setNewCategoryName('');
       setShowNewCategoryInput(false);
       
-      Alert.alert('Sucesso', 'Categoria criada com sucesso!');
+      Alert.alert(t('common.success'), t('createRecipe.categoryCreatedSuccess'));
     } catch (error) {
       console.error('[RecipeForm] Erro ao criar categoria:', error);
-      Alert.alert('Erro', 'Não foi possível criar a categoria');
+      Alert.alert(t('common.error'), t('createRecipe.categoryCreateError'));
     }
   };
 
   const handleCategoryLongPress = (category: Category) => {
     // Não permitir editar/excluir categorias padrão
     if (category.isDefault) {
-      Alert.alert('Informação', 'Categorias padrão não podem ser editadas ou excluídas');
+      Alert.alert(t('common.info'), t('createRecipe.defaultCategoryInfo'));
       return;
     }
 
     Alert.alert(
-      'Gerenciar Categoria',
-      `O que deseja fazer com "${category.name}"?`,
+      t('createRecipe.manageCategory'),
+      t('createRecipe.manageCategoryPrompt', { categoryName: category.name }),
       [
         {
-          text: 'Cancelar',
+          text: t('common.cancel'),
           style: 'cancel',
         },
         {
-          text: 'Editar',
+          text: t('common.edit'),
           onPress: () => editCategory(category),
         },
         {
-          text: 'Excluir',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: () => deleteCategory(category),
         },
@@ -336,15 +339,15 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
 
   const editCategory = (category: Category) => {
     Alert.prompt(
-      'Editar Categoria',
-      'Digite o novo nome da categoria:',
+      t('createRecipe.editCategory'),
+      t('createRecipe.newCategoryNamePrompt'),
       [
         {
-          text: 'Cancelar',
+          text: t('common.cancel'),
           style: 'cancel',
         },
         {
-          text: 'Salvar',
+          text: t('common.save'),
           onPress: async (newName) => {
             if (newName && newName.trim() && newName.trim() !== category.name) {
               await updateCategory(category, newName.trim());
@@ -380,24 +383,24 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
         setFormData(prev => ({ ...prev, category: newSlug }));
       }
       
-      Alert.alert('Sucesso', 'Categoria atualizada com sucesso!');
+      Alert.alert(t('common.success'), t('createRecipe.categoryUpdatedSuccess'));
     } catch (error) {
       console.error('[RecipeForm] Erro ao atualizar categoria:', error);
-      Alert.alert('Erro', 'Não foi possível atualizar a categoria');
+      Alert.alert(t('common.error'), t('createRecipe.categoryUpdateError'));
     }
   };
 
   const deleteCategory = (category: Category) => {
     Alert.alert(
-      'Confirmar Exclusão',
-      `Tem certeza que deseja excluir a categoria "${category.name}"?\n\nEsta ação não pode ser desfeita.`,
+      t('createRecipe.deleteCategory'),
+      t('createRecipe.deleteCategoryConfirm', { categoryName: category.name }),
       [
         {
-          text: 'Cancelar',
+          text: t('common.cancel'),
           style: 'cancel',
         },
         {
-          text: 'Excluir',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -414,10 +417,10 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
                 setFormData(prev => ({ ...prev, category: '' }));
               }
               
-              Alert.alert('Sucesso', 'Categoria excluída com sucesso!');
+              Alert.alert(t('common.success'), t('createRecipe.categoryDeletedSuccess'));
             } catch (error) {
               console.error('[RecipeForm] Erro ao excluir categoria:', error);
-              Alert.alert('Erro', 'Não foi possível excluir a categoria');
+              Alert.alert(t('common.error'), t('createRecipe.categoryDeleteError'));
             }
           },
         },
@@ -442,25 +445,26 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
           aiPhoto={formData.aiPhoto}
           onPhotoChange={(photo) => setFormData(prev => ({ ...prev, aiPhoto: photo }))}
           onRecipeDataExtracted={handleRecipeDataExtracted}
+          t={t}
         />
 
         {/* Basic Info */}
         <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Informações Básicas</Text>
+          <Text style={styles.sectionTitle}>{t('createRecipe.basicInfo')}</Text>
           
           <Input
-            label="Título *"
+            label={`${t('createRecipe.recipeName')} *`}
             value={formData.title}
             onChangeText={(value) => setFormData(prev => ({ ...prev, title: value }))}
-            placeholder="Nome da receita"
+            placeholder={t('createRecipe.recipeNamePlaceholder')}
             error={errors.title}
           />
 
           <Input
-            label="Descrição"
+            label={t('createRecipe.description')}
             value={formData.description}
             onChangeText={(value) => setFormData(prev => ({ ...prev, description: value }))}
-            placeholder="Descrição da receita"
+            placeholder={t('createRecipe.descriptionPlaceholder')}
             multiline
             numberOfLines={3}
             error={errors.description}
@@ -473,18 +477,18 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
             images={formData.images}
             onImagesChange={(images) => setFormData(prev => ({ ...prev, images }))}
             maxImages={5}
-            label="Imagens da Receita"
+            label={t('createRecipe.imagePicker.label')}
           />
         </Card>
 
         {/* Time and Servings */}
         <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Tempo e Porções</Text>
+          <Text style={styles.sectionTitle}>{t('createRecipe.timeAndServings')}</Text>
           
           <View style={styles.row}>
             <View style={styles.halfWidth}>
               <Input
-                label="Preparo (min)"
+                label={`${t('recipeDetail.prepTime')} (min)`}
                 value={formData.prepTime}
                 onChangeText={(value) => setFormData(prev => ({ ...prev, prepTime: value }))}
                 placeholder="15"
@@ -495,7 +499,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
             
             <View style={styles.halfWidth}>
               <Input
-                label="Cozimento (min)"
+                label={`${t('recipeDetail.cookTime')} (min)`}
                 value={formData.cookTime}
                 onChangeText={(value) => setFormData(prev => ({ ...prev, cookTime: value }))}
                 placeholder="30"
@@ -508,7 +512,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
           <View style={styles.row}>
             <View style={styles.halfWidth}>
               <Input
-                label="Porções"
+                label={t('recipeDetail.servings')}
                 value={formData.servings}
                 onChangeText={(value) => setFormData(prev => ({ ...prev, servings: value }))}
                 placeholder="4"
@@ -518,7 +522,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
             
             <View style={styles.halfWidth}>
               <Input
-                label="Temperatura"
+                label={t('createRecipe.temperature')}
                 value={formData.temperature}
                 onChangeText={(value) => setFormData(prev => ({ ...prev, temperature: value }))}
                 placeholder="180°C"
@@ -529,9 +533,9 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
 
         {/* Category and Difficulty */}
         <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Categoria e Dificuldade</Text>
+          <Text style={styles.sectionTitle}>{t('createRecipe.categoryAndDifficulty')}</Text>
           
-          <Text style={styles.label}>Categoria *</Text>
+          <Text style={styles.label}>{t('createRecipe.category')} *</Text>
           
           {categories.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.optionsScroll}>
@@ -548,7 +552,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
                       size="md"
                       style={styles.optionBadge}
                     >
-                      {category.name}
+                      {translateCategory(category.slug || category.name, t)}
                     </Badge>
                   </TouchableOpacity>
                 ))}
@@ -560,19 +564,19 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
                 >
                   <Badge variant="secondary" size="md" style={styles.optionBadge}>
                     <Ionicons name="add" size={16} color={Colors.primary} />
-                    <Text style={styles.addCategoryText}>Nova</Text>
+                    <Text style={styles.addCategoryText}>{t('common.new')}</Text>
                   </Badge>
                 </TouchableOpacity>
               </View>
             </ScrollView>
           ) : (
             <View style={styles.emptyCategoriesContainer}>
-              <Text style={styles.emptyCategoriesText}>Nenhuma categoria disponível</Text>
+              <Text style={styles.emptyCategoriesText}>{t('createRecipe.noCategoriesAvailable')}</Text>
               <TouchableOpacity
                 onPress={() => setShowNewCategoryInput(true)}
                 style={styles.createFirstCategoryButton}
               >
-                <Text style={styles.createFirstCategoryText}>Criar primeira categoria</Text>
+                <Text style={styles.createFirstCategoryText}>{t('createRecipe.createFirstCategory')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -581,7 +585,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
           {showNewCategoryInput && (
             <View style={styles.newCategoryContainer}>
               <Input
-                placeholder="Nome da nova categoria"
+                placeholder={t('createRecipe.newCategoryNamePlaceholder')}
                 value={newCategoryName}
                 onChangeText={setNewCategoryName}
                 style={styles.newCategoryInput}
@@ -591,7 +595,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
                   onPress={createNewCategory}
                   style={[styles.newCategoryButton, styles.saveButton]}
                 >
-                  <Text style={styles.saveButtonText}>Salvar</Text>
+                  <Text style={styles.saveButtonText}>{t('common.save')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
@@ -600,7 +604,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
                   }}
                   style={[styles.newCategoryButton, styles.cancelButton]}
                 >
-                  <Text style={styles.cancelButtonText}>Cancelar</Text>
+                  <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -608,7 +612,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
           
           {errors.category && <Text style={styles.errorText}>{errors.category}</Text>}
 
-          <Text style={styles.label}>Dificuldade</Text>
+          <Text style={styles.label}>{t('recipeDetail.difficulty')}</Text>
           <View style={styles.optionsContainer}>
             {difficulties.map((difficulty) => (
               <TouchableOpacity
@@ -630,7 +634,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
         {/* Ingredients */}
         <Card style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Ingredientes</Text>
+            <Text style={styles.sectionTitle}>{t('recipeDetail.ingredients')}</Text>
             <TouchableOpacity onPress={addIngredient}>
               <Ionicons name="add-circle" size={24} color={Colors.primary} />
             </TouchableOpacity>
@@ -641,14 +645,14 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
               <View style={styles.ingredientInputs}>
                 <View style={styles.quarterWidth}>
                   <Input
-                    placeholder="Qtd"
+                    placeholder={t('createRecipe.quantityPlaceholder')}
                     value={ingredient.quantity}
                     onChangeText={(value) => updateIngredient(index, 'quantity', value)}
                   />
                 </View>
                 <View style={styles.threeQuarterWidth}>
                   <Input
-                    placeholder="Ingrediente"
+                    placeholder={t('createRecipe.ingredientPlaceholder')}
                     value={ingredient.item}
                     onChangeText={(value) => updateIngredient(index, 'item', value)}
                   />
@@ -667,7 +671,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
         {/* Instructions */}
         <Card style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Modo de Preparo</Text>
+            <Text style={styles.sectionTitle}>{t('recipeDetail.instructions')}</Text>
             <TouchableOpacity onPress={addInstruction}>
               <Ionicons name="add-circle" size={24} color={Colors.primary} />
             </TouchableOpacity>
@@ -680,7 +684,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
               </View>
               <View style={styles.instructionInput}>
                 <Input
-                  placeholder="Descreva o passo"
+                  placeholder={t('createRecipe.instructionPlaceholder')}
                   value={instruction}
                   onChangeText={(value) => updateInstruction(index, value)}
                   multiline
@@ -699,12 +703,12 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
 
         {/* Tags */}
         <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Tags</Text>
+          <Text style={styles.sectionTitle}>{t('createRecipe.tags')}</Text>
           
           <View style={styles.tagInputRow}>
             <View style={styles.tagInput}>
               <Input
-                placeholder="Adicionar tag"
+                placeholder={t('createRecipe.addTag')}
                 value={newTag}
                 onChangeText={setNewTag}
                 onSubmitEditing={addTag}

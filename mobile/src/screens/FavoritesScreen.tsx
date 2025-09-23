@@ -12,6 +12,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button } from '../components/ui/Button';
 import { RecipeCard } from '../components/RecipeCard';
+import { useLanguage } from '../contexts/LanguageContext';
 import { Colors, Typography, Spacing } from '../constants/theme';
 import { db } from '../services/database';
 import { Recipe } from '../types/Recipe';
@@ -21,6 +22,7 @@ type FavoritesScreenNavigationProp = NativeStackNavigationProp<RootStackParamLis
 
 const FavoritesScreen = () => {
   const navigation = useNavigation<FavoritesScreenNavigationProp>();
+  const { t } = useLanguage();
   const [favoriteRecipes, setFavoriteRecipes] = useState<Recipe[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,7 +41,7 @@ const FavoritesScreen = () => {
       setFavoriteIds(favoritesList.map(fav => fav.recipeId));
     } catch (error) {
       console.error('Erro ao carregar favoritos:', error);
-      Alert.alert('Erro', 'Não foi possível carregar suas receitas favoritas');
+      Alert.alert(t('common.error'), t('favorites.loadingFavorites'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -69,7 +71,7 @@ const FavoritesScreen = () => {
       }
     } catch (error) {
       console.error('Erro ao toggle favorito:', error);
-      Alert.alert('Erro', 'Não foi possível atualizar favorito');
+      Alert.alert(t('common.error'), t('common.error'));
     }
   };
 
@@ -99,19 +101,19 @@ const FavoritesScreen = () => {
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Ionicons name="heart-outline" size={64} color={Colors.textSecondary} />
-      <Text style={styles.emptyTitle}>Nenhuma receita favorita</Text>
+      <Text style={styles.emptyTitle}>{t('favorites.noFavorites')}</Text>
       <Text style={styles.emptySubtitle}>
-        Explore receitas e toque no coração para adicionar aos seus favoritos
+        {t('favorites.startAdding')}
       </Text>
-      
+
       <View style={styles.emptyActions}>
         <Button
-          title="Explorar Receitas"
+          title={t('common.explore')}
           onPress={navigateToSearch}
           style={styles.exploreButton}
         />
         <Button
-          title="Criar Receita"
+          title={t('home.createRecipe')}
           onPress={navigateToCreateRecipe}
           variant="outline"
           style={styles.createButton}
@@ -122,9 +124,9 @@ const FavoritesScreen = () => {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <Text style={styles.headerTitle}>Suas Receitas Favoritas</Text>
+      <Text style={styles.headerTitle}>{t('favorites.yourFavorites')}</Text>
       <Text style={styles.headerSubtitle}>
-        {favoriteRecipes.length} receita{favoriteRecipes.length !== 1 ? 's' : ''} salva{favoriteRecipes.length !== 1 ? 's' : ''}
+        {favoriteRecipes.length} {favoriteRecipes.length !== 1 ? t('favorites.savedPlural') : t('favorites.saved')}
       </Text>
     </View>
   );
@@ -133,7 +135,7 @@ const FavoritesScreen = () => {
     return (
       <View style={styles.loadingContainer}>
         <Ionicons name="heart" size={48} color={Colors.primary} />
-        <Text style={styles.loadingText}>Carregando favoritos...</Text>
+        <Text style={styles.loadingText}>{t('favorites.loadingFavorites')}</Text>
       </View>
     );
   }
