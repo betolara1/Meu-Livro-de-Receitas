@@ -1,0 +1,40 @@
+{
+    "cli": {
+      "appVersionSource": "remote"
+    },
+    "build": {
+      "preview": {
+        "android": {
+          "buildType": "apk",
+          "env": {
+            "EXPO_NO_CAPABILITY_SYNC": "1"
+          }
+        }
+      },
+      "preview2": {
+        "android": {
+          "gradleCommand": ":app:assembleRelease",
+          "env": {
+            "EXPO_NO_CAPABILITY_SYNC": "1"
+          }
+        }
+      },
+      "preview3": {
+        "developmentClient": true
+      },
+      "production": {
+        "android": {
+          "buildType": "apk",
+          "env": {
+            "EXPO_NO_CAPABILITY_SYNC": "1"
+          }
+        },
+        "autoIncrement": true
+      },
+      "local": {
+        "android": {
+          "gradleCommand": ":app:assembleRelease"
+        }
+      }
+    }
+  }

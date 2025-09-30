@@ -14,27 +14,6 @@
     "assetBundlePatterns": [
       "**/*"
     ],
-    "ios": {
-      "supportsTablet": true,
-      "usesAppleSignIn": true,
-      "bundleIdentifier": "com.recipeBook.mobile",
-      "googleServicesFile": "./ios/GoogleService-Info.plist",
-      "infoPlist": {
-        "CFBundleURLTypes": [
-          {
-            "CFBundleURLName": "REVERSED_CLIENT_ID",
-            "CFBundleURLSchemes": ["com.googleusercontent.apps.1067379841978-cfh18te5vrbpea8csbpf5c9skj59j4mh"]
-          },
-          {
-            "CFBundleURLName": "com.recipeBook.mobile",
-            "CFBundleURLSchemes": ["recipebook"]
-          }
-        ],
-        "NSCameraUsageDescription": "Este app precisa acessar a câmera para tirar fotos das receitas e analisá-las com IA.",
-        "NSPhotoLibraryUsageDescription": "Este app precisa acessar a galeria de fotos para selecionar imagens das receitas.",
-        "com.apple.developer.applesignin": ["Default"]
-      }
-    },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "",
@@ -54,7 +33,10 @@
               "scheme": "recipebook"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -62,18 +44,15 @@
       "favicon": "",
       "bundler": "metro"
     },
-    "plugins": [
-      "@react-native-google-signin/google-signin",
-      "expo-apple-authentication"
-    ],
-    "scheme": "recipebook",
     "updates": {
       "enabled": false,
       "checkAutomatically": "NEVER",
       "fallbackToCacheTimeout": 0
     },
-    "packagerOpts": {
-      "config": "metro.config.js"
+    "extra": {
+      "eas": {
+        "projectId": "e0d8a5e8-4082-4144-b51b-7345b5aa3da4"
+      }
     }
   }
 }

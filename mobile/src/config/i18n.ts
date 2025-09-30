@@ -1,7 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
 
 import pt from '../locales/pt.json';
 import en from '../locales/en.json';
@@ -29,6 +28,20 @@ const resources = {
   },
 };
 
+// Detect device language and map to supported codes
+const detectDeviceLanguage = (): string => {
+  try {
+    const locale = Intl.DateTimeFormat().resolvedOptions().locale;
+    const baseLang = locale.split('-')[0].toLowerCase();
+    if (resources[baseLang as keyof typeof resources]) {
+      return baseLang;
+    }
+  } catch (error) {
+    // no-op, will fallback below
+  }
+  return 'pt';
+};
+
 // Função para obter o idioma salvo ou usar padrão
 const getInitialLanguage = async (): Promise<string> => {
   try {
@@ -36,9 +49,9 @@ const getInitialLanguage = async (): Promise<string> => {
     if (savedLanguage) {
       return savedLanguage;
     }
-    
-    // Usar português como padrão
-    return 'pt';
+
+    // Detectar idioma do dispositivo quando não houver preferência salva
+    return detectDeviceLanguage();
   } catch (error) {
     console.error('Error getting initial language:', error);
     return 'pt';

@@ -1,4 +1,4 @@
-import { appleAuth } from '@invertase/react-native-apple-authentication';
+/*import { appleAuth } from '@invertase/react-native-apple-authentication';
 import { Platform } from 'react-native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
@@ -18,7 +18,7 @@ export interface AppleAuthResult {
 class AppleAuthService {
   /**
    * Verifica se o Apple Sign In está disponível no dispositivo
-   */
+   
   async isAvailable(): Promise<boolean> {
     if (Platform.OS !== 'ios') {
       return false;
@@ -34,7 +34,7 @@ class AppleAuthService {
 
   /**
    * Realiza o login com Apple
-   */
+   
   async signIn(): Promise<AppleAuthResult> {
     try {
       // Verifica se está disponível
@@ -82,7 +82,7 @@ class AppleAuthService {
 
   /**
    * Realiza o logout
-   */
+   
   async signOut(): Promise<void> {
     try {
       // O Apple Sign In não requer logout explícito
@@ -96,7 +96,7 @@ class AppleAuthService {
 
   /**
    * Obtém o estado de autenticação
-   */
+   
   async getCredentialState(userID: string): Promise<number> {
     try {
       return await appleAuth.getCredentialStateForUser(userID);
@@ -108,7 +108,7 @@ class AppleAuthService {
 
   /**
    * Verifica se o usuário está autenticado
-   */
+   
   async isSignedIn(): Promise<boolean> {
     try {
       const credentialState = await appleAuth.getCredentialStateForUser('currentUser');
@@ -121,3 +121,4 @@ class AppleAuthService {
 }
 
 export default new AppleAuthService();
+*/

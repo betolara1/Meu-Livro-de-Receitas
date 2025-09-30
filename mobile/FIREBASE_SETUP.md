@@ -100,7 +100,7 @@ const firebaseConfig = {
 
 1. No Firebase Console, vá para "Authentication" > "Sign-in method"
 2. Clique em "Google" e copie o "Web client ID"
-3. No Xcode, abra o arquivo `ios/YourApp/GoogleService-Info.plist`
+3. No Xcode, abra o arquivo `ios/YourApp/`
 4. Adicione a configuração do Google Sign-In
 
 ## 9. Testar a Configuração
