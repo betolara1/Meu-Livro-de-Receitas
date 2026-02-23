@@ -7,6 +7,13 @@ Uma aplicação web moderna para gerenciar, buscar e compartilhar receitas culin
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.1.9-38B2AC?style=for-the-badge&logo=tailwind-css)
 ![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=for-the-badge&logo=mysql)
 
+---
+
+> [!NOTE]
+> **Status do Desenvolvimento**: Este sistema foi desenvolvimento e finalizado por mim, com o auxílio estratégico de Inteligência Artificial para refatoração, implementação de regras de negócio complexas e polimento de interface.
+
+---
+
 ## ✨ Funcionalidades
 
 ### 🍳 Gestão de Receitas
